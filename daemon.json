@@ -1,6 +1,3 @@
 {
-  "mtu": 1460,
-  "features": {
-    "buildkit": true
-  }
+  "mtu": 1460
 }
