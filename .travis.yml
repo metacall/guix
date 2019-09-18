@@ -34,15 +34,9 @@ dist: bionic
 env:
   global:
     - DOCKER_VERSION: 19.03.2
-    - DOCKER_COMPOSE_VERSION: 1.24.1
-    - GIT_SUBMODULE_STRATEGY: recursive
 
-# Update Docker & Docker Compose
+# Update Docker
 before_script:
-  - sudo rm /usr/local/bin/docker-compose || true
-  - curl -sL https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-`uname -s`-`uname -m` > docker-compose
-  - chmod +x docker-compose
-  - sudo mv docker-compose /usr/local/bin
   - sudo sh -c 'echo "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) edge" > /etc/apt/sources.list.d/docker.list'
   - curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
   - sudo apt-key fingerprint 0EBFCD88
