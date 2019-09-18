@@ -1,6 +1,6 @@
 #
-#	MetaCall Distributable by Parra Studios
-#	Distributable infrastructure for MetaCall.
+#	MetaCall Guix by Parra Studios
+#	Docker image for using GuixSD in a CI/CD environment.
 #
 #	Copyright (C) 2016 - 2019 Vicente Eduardo Ferrer Garcia <vic798@gmail.com>
 #
