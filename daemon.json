@@ -1,5 +1,4 @@
 {
-  "registry-mirrors": ["https://mirror.gcr.io"],
   "mtu": 1460,
   "features": {
     "buildkit": true
