@@ -33,9 +33,8 @@ dist: bionic
 # Global environment variables
 env:
   global:
-    - DOCKER_VERSION: 19.04.0
+    - DOCKER_VERSION: 19.03.2
     - DOCKER_BUILDKIT: 1
-    - DOCKER_CONFIG_JSON: "{ \"features\": { \"buildkit\": true } }"
 
 # Update Docker
 before_script:
@@ -44,9 +43,9 @@ before_script:
   - sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable edge"
   - sudo apt-get update
   - apt-cache policy docker-ce
-  - sudo apt-get install -y docker-ce
+  - sudo apt-get install -y docker-ce=${DOCKER_VERSION}~3-0~ubuntu-$(lsb_release -cs)
   - docker version
-  - sudo sh -c 'echo "${DOCKER_CONFIG_JSON}" > /etc/docker/daemon.json'
+  - sudo sh -c 'echo "{ \"features\": { \"buildkit\": true } }" > /etc/docker/daemon.json'
   - sudo cat /etc/docker/daemon.json
   - sudo systemctl restart docker
   - sudo systemctl status docker
