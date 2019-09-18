@@ -51,7 +51,7 @@ before_script:
 
 # Run the build and packaging
 script:
-  - docker buildx build --build-arg METACALL_GUIX_VERSION="1.0.1" METACALL_GUIX_ARCH="x86_64" .
+  - docker build --build-arg METACALL_GUIX_VERSION="1.0.1" --build-arg METACALL_GUIX_ARCH="x86_64" .
 
 # Upload to Docker the built images
 after_script:
