@@ -47,14 +47,18 @@ before_script:
   - sudo mv daemon.json /etc/docker/daemon.json
   - sudo systemctl restart docker
   - docker version
-  - docker build --platform=local -o . git://github.com/docker/buildx 1> /dev/null
+  - docker build --platform=local -o . git://github.com/docker/buildx
   - mkdir -p ~/.docker/cli-plugins/
   - mv buildx ~/.docker/cli-plugins/docker-buildx
 
 # Run the build and packaging
 script:
   - docker buildx create --use --name insecure-builder --buildkitd-flags '--allow-insecure-entitlement security.insecure'
+  - sh -c 'while true; do echo "."; sleep 300; done' &
+  - TRAVIS_POLL=$!
+  - echo "Polling process pid (${TRAVIS_POLL})"
   - docker buildx build --allow security.insecure --build-arg METACALL_GUIX_VERSION="1.0.1" --build-arg METACALL_GUIX_ARCH="x86_64" . 1> /dev/null
+  - kill -9 ${TRAVIS_POLL}
 
 # Upload the built images to DockerHub
 after_script:
