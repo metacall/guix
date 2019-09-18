@@ -45,9 +45,7 @@ before_script:
   - apt-cache policy docker-ce
   - sudo apt-get install -y docker-ce="5:${DOCKER_VERSION}~3-0~ubuntu-$(lsb_release -cs)"
   - docker version
-  - sudo cat /etc/docker/daemon.json
   - sudo mv daemon.json /etc/docker/daemon.json
-  - sudo cat /etc/docker/daemon.json
   - sudo systemctl reload-or-restart docker
   - sudo systemctl status docker
   - git clone git://github.com/docker/buildx && cd buildx && sudo make install
