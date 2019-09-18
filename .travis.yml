@@ -58,10 +58,11 @@ script:
   - sh -c 'while true; do echo "."; sleep 300; done' &
   - TRAVIS_POLL=$!
   - echo "Polling process pid (${TRAVIS_POLL})"
-  - docker buildx build --allow security.insecure --build-arg METACALL_GUIX_VERSION="1.0.1" --build-arg METACALL_GUIX_ARCH="x86_64" . > logs 2>&1
+  - docker buildx build --tag metacall/guix --allow security.insecure --build-arg METACALL_GUIX_VERSION="1.0.1" --build-arg METACALL_GUIX_ARCH="x86_64" . > logs 2>&1
   - tail -n 500 logs
   - kill -9 ${TRAVIS_POLL}
 
 # Upload the built images to DockerHub
 after_script:
-  # TODO
+  - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+  - docker push metacall/guix
