@@ -34,7 +34,7 @@ dist: bionic
 env:
   global:
     - DOCKER_VERSION: 19.03.2
-    # - DOCKER_BUILDKIT: 1
+    - DOCKER_BUILDKIT: 1
 
 # Update Docker
 before_script:
@@ -45,10 +45,11 @@ before_script:
   - apt-cache policy docker-ce
   - sudo apt-get install -y docker-ce="5:${DOCKER_VERSION}~3-0~ubuntu-$(lsb_release -cs)"
   - docker version
-  # - sudo mv daemon.json /etc/docker/daemon.json
-  # - sudo systemctl reload-or-restart docker
-  # - sudo systemctl status docker
-  - git clone git://github.com/docker/buildx && cd buildx && sudo make install
+  - sudo mv daemon.json /etc/docker/daemon.json
+  - sudo systemctl reload-or-restart docker
+  - sudo systemctl status docker
+  - docker build --platform=local -o . git://github.com/docker/buildx
+  - mv buildx ~/.docker/cli-plugins/docker-buildx
 
 # Run the build and packaging
 script:

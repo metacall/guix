@@ -1,3 +1,5 @@
+# syntax = docker/dockerfile:1.0-experimental
+
 #
 #	MetaCall Guix by Parra Studios
 #	Docker image for using GuixSD in a CI/CD environment.
