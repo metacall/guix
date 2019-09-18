@@ -1,4 +1,4 @@
-# syntax = docker/dockerfile:1.0-experimental
+# syntax = docker/dockerfile:1.1-experimental
 
 #
 #	MetaCall Guix by Parra Studios
