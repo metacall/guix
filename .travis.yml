@@ -43,12 +43,12 @@ before_script:
   - sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable edge"
   - sudo apt-get update
   - apt-cache policy docker-ce
-  - sudo apt-get install -y docker-ce=${DOCKER_VERSION}~3-0~ubuntu-$(lsb_release -cs)
+  - sudo apt-get install -y docker-ce="5:${DOCKER_VERSION}~3-0~ubuntu-$(lsb_release -cs)"
   - docker version
   - sudo mv daemon.json /etc/docker/daemon.json
   - sudo systemctl reload-or-restart docker
   - sudo systemctl status docker
-#  - git clone git://github.com/docker/buildx && cd buildx && sudo make install
+  - git clone git://github.com/docker/buildx && cd buildx && sudo make install
 
 # Run the build and packaging
 script:
