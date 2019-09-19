@@ -37,8 +37,8 @@ ENV GUIX_PROFILE="/root/.config/guix/current"
 # Copy entry point
 COPY scripts/entry-point.sh /entry-point.sh
 
-# Install Guix
-RUN apk add --no-cache --update --virtual .build-deps shadow \
+# Install Guix (https://github.com/docker/buildx/blob/master/README.md#--allowentitlement)
+RUN --security=insecure apk add --no-cache --update --virtual .build-deps shadow \
 	&& mkdir -p /gnu/store \
 	&& addgroup guixbuild \
 	&& addgroup guix-builder \
@@ -59,10 +59,8 @@ RUN apk add --no-cache --update --virtual .build-deps shadow \
 			ln -s $i /usr/local/share/info/; \
 		done \
 	&& guix archive --authorize < ~root/.config/guix/current/share/guix/ci.guix.gnu.org.pub \
-	&& chmod +x /entry-point.sh
-
-# Run pull (https://github.com/docker/buildx/blob/master/README.md#--allowentitlement)
-RUN --security=insecure source $GUIX_PROFILE/etc/profile \
+	&& chmod +x /entry-point.sh \
+	&& source $GUIX_PROFILE/etc/profile \
 	&& ~root/.config/guix/current/bin/guix-daemon --build-users-group=guixbuild & guix pull
 
 ENTRYPOINT ["/entry-point.sh"]
