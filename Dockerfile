@@ -67,8 +67,5 @@ RUN apk add --no-cache --update --virtual .build-deps shadow \
 RUN --security=insecure source $GUIX_PROFILE/etc/profile \
 	&& ~root/.config/guix/current/bin/guix-daemon --build-users-group=guixbuild & guix pull
 
-RUN --security=insecure source $GUIX_PROFILE/etc/profile \
-	&& ~root/.config/guix/current/bin/guix-daemon --build-users-group=guixbuild & guix package -i nss-certs
-
 ENTRYPOINT ["/entry-point.sh"]
 CMD ["sh"]
