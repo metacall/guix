@@ -65,7 +65,10 @@ RUN apk add --no-cache --update --virtual .build-deps shadow \
 
 # Run pull (https://github.com/docker/buildx/blob/master/README.md#--allowentitlement)
 RUN --security=insecure source $GUIX_PROFILE/etc/profile \
-	&& ~root/.config/guix/current/bin/guix-daemon --build-users-group=guixbuild & (guix pull; guix package -i nss-certs)
+	&& ~root/.config/guix/current/bin/guix-daemon --build-users-group=guixbuild & guix pull
+
+RUN --security=insecure source $GUIX_PROFILE/etc/profile \
+	&& ~root/.config/guix/current/bin/guix-daemon --build-users-group=guixbuild & guix package -i nss-certs
 
 ENTRYPOINT ["/entry-point.sh"]
 CMD ["sh"]
