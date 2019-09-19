@@ -59,7 +59,7 @@ RUN wget -O - https://ftp.gnu.org/gnu/guix/guix-binary-${METACALL_GUIX_VERSION}.
 		done \
 	&& guix archive --authorize < ~root/.config/guix/current/share/guix/ci.guix.gnu.org.pub
 
-# Run pull
+# Run pull (https://github.com/docker/buildx/blob/master/README.md#--allowentitlement)
 RUN --security=insecure source $GUIX_PROFILE/etc/profile \
 	&& ~root/.config/guix/current/bin/guix-daemon --build-users-group=guixbuild & guix pull
 
