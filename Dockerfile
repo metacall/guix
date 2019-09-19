@@ -32,7 +32,9 @@ LABEL copyright.name="Vicente Eduardo Ferrer Garcia" \
 ARG METACALL_GUIX_VERSION
 ARG METACALL_GUIX_ARCH
 
-ENV GUIX_PROFILE="/root/.config/guix/current"
+ENV GUIX_PROFILE="/root/.config/guix/current" \
+	GIT_SSL_CAINFO="${GUIX_PROFILE}/etc/ssl/certs/ca-certificates.crt${GIT_SSL_CAINFO:+:}$GIT_SSL_CAINFO" \
+	SSL_CERT_DIR="${GUIX_PROFILE}/etc/ssl/certs${SSL_CERT_DIR:+:}$SSL_CERT_DIR"
 
 # Copy entry point
 COPY scripts/entry-point.sh /entry-point.sh
@@ -63,7 +65,7 @@ RUN apk add --no-cache --update --virtual .build-deps shadow \
 
 # Run pull (https://github.com/docker/buildx/blob/master/README.md#--allowentitlement)
 RUN --security=insecure source $GUIX_PROFILE/etc/profile \
-	&& ~root/.config/guix/current/bin/guix-daemon --build-users-group=guixbuild & guix pull
+	&& ~root/.config/guix/current/bin/guix-daemon --build-users-group=guixbuild & guix pull && guix package -i nss-certs
 
 ENTRYPOINT ["/entry-point.sh"]
 CMD ["sh"]
