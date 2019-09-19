@@ -29,9 +29,15 @@ LABEL copyright.name="Vicente Eduardo Ferrer Garcia" \
 	vendor="MetaCall Inc." \
 	version="0.1"
 
+ARG METACALL_GUIX_VERSION
+ARG METACALL_GUIX_ARCH
+
 ENV GUIX_PROFILE="/root/.config/guix/current"
 
-# Add Guix build users
+# Copy entry point
+COPY scripts/entry-point.sh /entry-point.sh
+
+# Install Guix
 RUN apk add --no-cache --update --virtual .build-deps shadow \
 	&& mkdir -p /gnu/store \
 	&& addgroup guixbuild \
@@ -41,13 +47,8 @@ RUN apk add --no-cache --update --virtual .build-deps shadow \
 	&& for i in `seq -w 1 10`; do \
 			useradd -g guixbuild -G guixbuild -d /var/empty -s `which nologin` -c "Guix build user $i" --system guixbuilder$i; \
 		done \
-	&& apk del .build-deps
-
-ARG METACALL_GUIX_VERSION
-ARG METACALL_GUIX_ARCH
-
-# Install Guix
-RUN wget -O - https://ftp.gnu.org/gnu/guix/guix-binary-${METACALL_GUIX_VERSION}.${METACALL_GUIX_ARCH}-linux.tar.xz | tar -xJv -C / \
+	&& apk del .build-deps \
+	&& wget -O - https://ftp.gnu.org/gnu/guix/guix-binary-${METACALL_GUIX_VERSION}.${METACALL_GUIX_ARCH}-linux.tar.xz | tar -xJv -C / \
 	&& mkdir -p ~root/.config/guix \
 	&& ln -sf /var/guix/profiles/per-user/root/current-guix ~root/.config/guix/current \
 	&& source $GUIX_PROFILE/etc/profile \
@@ -57,16 +58,12 @@ RUN wget -O - https://ftp.gnu.org/gnu/guix/guix-binary-${METACALL_GUIX_VERSION}.
 	&& for i in /var/guix/profiles/per-user/root/current-guix/share/info/*; do \
 			ln -s $i /usr/local/share/info/; \
 		done \
-	&& guix archive --authorize < ~root/.config/guix/current/share/guix/ci.guix.gnu.org.pub
+	&& guix archive --authorize < ~root/.config/guix/current/share/guix/ci.guix.gnu.org.pub \
+	&& chmod +x /entry-point.sh
 
 # Run pull (https://github.com/docker/buildx/blob/master/README.md#--allowentitlement)
 RUN --security=insecure source $GUIX_PROFILE/etc/profile \
 	&& ~root/.config/guix/current/bin/guix-daemon --build-users-group=guixbuild & guix pull
-
-# Set up entry point
-COPY scripts/entry-point.sh /entry-point.sh
-
-RUN chmod +x /entry-point.sh
 
 ENTRYPOINT ["/entry-point.sh"]
 CMD ["sh"]
