@@ -32,13 +32,15 @@ LABEL copyright.name="Vicente Eduardo Ferrer Garcia" \
 ARG METACALL_GUIX_VERSION
 ARG METACALL_GUIX_ARCH
 
-ENV GUIX_PROFILE="/root/.config/guix/current"
+ENV GUIX_PROFILE="/root/.config/guix/current" \
+	GIT_SSL_CAINFO="${GUIX_PROFILE}/etc/ssl/certs/ca-certificates.crt${GIT_SSL_CAINFO:+:}$GIT_SSL_CAINFO" \
+	SSL_CERT_DIR="${GUIX_PROFILE}/etc/ssl/certs${SSL_CERT_DIR:+:}$SSL_CERT_DIR"
 
 # Copy entry point
 COPY scripts/entry-point.sh /entry-point.sh
 
-# Install Guix (https://github.com/docker/buildx/blob/master/README.md#--allowentitlement)
-RUN --security=insecure apk add --no-cache --update --virtual .build-deps shadow \
+# Install Guix
+RUN apk add --no-cache --update --virtual .build-deps shadow \
 	&& mkdir -p /gnu/store \
 	&& addgroup guixbuild \
 	&& addgroup guix-builder \
@@ -59,8 +61,10 @@ RUN --security=insecure apk add --no-cache --update --virtual .build-deps shadow
 			ln -s $i /usr/local/share/info/; \
 		done \
 	&& guix archive --authorize < ~root/.config/guix/current/share/guix/ci.guix.gnu.org.pub \
-	&& chmod +x /entry-point.sh \
-	&& source $GUIX_PROFILE/etc/profile \
+	&& chmod +x /entry-point.sh
+
+# Run pull (https://github.com/docker/buildx/blob/master/README.md#--allowentitlement)
+RUN --security=insecure source $GUIX_PROFILE/etc/profile \
 	&& ~root/.config/guix/current/bin/guix-daemon --build-users-group=guixbuild & guix pull
 
 ENTRYPOINT ["/entry-point.sh"]
