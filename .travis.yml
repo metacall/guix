@@ -41,6 +41,7 @@ before_script:
   - curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
   - sudo apt-key fingerprint 0EBFCD88
   - sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable edge"
+  - sudo rm -rf /etc/apt/sources.list.d/pgdg.list
   - sudo apt-get update
   - apt-cache policy docker-ce
   - sudo apt-get install -y docker-ce="5:${DOCKER_VERSION}~3-0~ubuntu-$(lsb_release -cs)"
