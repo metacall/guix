@@ -33,8 +33,13 @@ ARG METACALL_GUIX_VERSION
 ARG METACALL_GUIX_ARCH
 
 ENV GUIX_PROFILE="/root/.config/guix/current" \
-	GIT_SSL_CAINFO="${GUIX_PROFILE}/etc/ssl/certs/ca-certificates.crt${GIT_SSL_CAINFO:+:}$GIT_SSL_CAINFO" \
-	SSL_CERT_DIR="${GUIX_PROFILE}/etc/ssl/certs${SSL_CERT_DIR:+:}$SSL_CERT_DIR"
+	GUIX_LOCPATH="/root/.guix-profile/lib/locale/" \
+	LANG="en_US.UTF-8" \
+	LANGUAGE="en_US.UTF-8" \
+	LC_ALL="en_US.UTF-8" \
+	SSL_CERT_DIR="/root/.guix-profile/etc/ssl/certs" \
+	GIT_SSL_FILE="/root/.guix-profile/etc/ssl/certs/ca-certificates.crt" \
+	GIT_SSL_CAINFO="$GIT_SSL_FILE"
 
 # Copy entry point
 COPY scripts/entry-point.sh /entry-point.sh
@@ -51,8 +56,8 @@ RUN apk add --no-cache --update --virtual .build-deps shadow \
 		done \
 	&& apk del .build-deps \
 	&& wget -O - https://ftp.gnu.org/gnu/guix/guix-binary-${METACALL_GUIX_VERSION}.${METACALL_GUIX_ARCH}-linux.tar.xz | tar -xJv -C / \
-	&& mkdir -p ~root/.config/guix \
-	&& ln -sf /var/guix/profiles/per-user/root/current-guix ~root/.config/guix/current \
+	&& mkdir -p /root/.config/guix \
+	&& ln -sf /var/guix/profiles/per-user/root/current-guix /root/.config/guix/current \
 	&& source $GUIX_PROFILE/etc/profile \
 	&& mkdir -p /usr/local/bin \
 	&& ln -s /var/guix/profiles/per-user/root/current-guix/bin/guix /usr/local/bin/ \
@@ -60,12 +65,12 @@ RUN apk add --no-cache --update --virtual .build-deps shadow \
 	&& for i in /var/guix/profiles/per-user/root/current-guix/share/info/*; do \
 			ln -s $i /usr/local/share/info/; \
 		done \
-	&& guix archive --authorize < ~root/.config/guix/current/share/guix/ci.guix.gnu.org.pub \
+	&& guix archive --authorize < /root/.config/guix/current/share/guix/ci.guix.gnu.org.pub \
 	&& chmod +x /entry-point.sh
 
 # Run pull (https://github.com/docker/buildx/blob/master/README.md#--allowentitlement)
 RUN --security=insecure source $GUIX_PROFILE/etc/profile \
-	&& ~root/.config/guix/current/bin/guix-daemon --build-users-group=guixbuild & guix pull
+	&& /root/.config/guix/current/bin/guix-daemon --build-users-group=guixbuild & guix pull
 
 ENTRYPOINT ["/entry-point.sh"]
 CMD ["sh"]
