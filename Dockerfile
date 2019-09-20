@@ -69,8 +69,7 @@ RUN apk add --no-cache --update --virtual .build-deps shadow \
 	&& chmod +x /entry-point.sh
 
 # Run pull (https://github.com/docker/buildx/blob/master/README.md#--allowentitlement)
-RUN --security=insecure source $GUIX_PROFILE/etc/profile \
-	&& /root/.config/guix/current/bin/guix-daemon --build-users-group=guixbuild & guix pull
+RUN --security=insecure /entry-point.sh guix pull && guix package -i glibc-utf8-locales nss-certs
 
 ENTRYPOINT ["/entry-point.sh"]
 CMD ["sh"]
