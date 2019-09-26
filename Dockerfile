@@ -73,7 +73,8 @@ RUN --security=insecure /entry-point.sh guix pull \
 	&& guix package -i \
 		glibc-utf8-locales \
 		nss-certs \
-		cmake
+		cmake \
+		make
 
 ENTRYPOINT ["/entry-point.sh"]
 CMD ["sh"]
