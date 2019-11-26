@@ -36,7 +36,6 @@ ENV GUIX_PROFILE="/root/.config/guix/current" \
 	GUIX_LOCPATH="/root/.guix-profile/lib/locale/" \
 	LANG="en_US.utf8" \
 	LANGUAGE="en_US.utf8" \
-	LC_ALL="en_US.utf8" \
 	SSL_CERT_DIR="/root/.guix-profile/etc/ssl/certs" \
 	GIT_SSL_FILE="/root/.guix-profile/etc/ssl/certs/ca-certificates.crt" \
 	GIT_SSL_CAINFO="$GIT_SSL_FILE"
@@ -70,10 +69,7 @@ RUN apk add --no-cache --update --virtual .build-deps shadow \
 
 # Run pull (https://github.com/docker/buildx/blob/master/README.md#--allowentitlement)
 RUN --security=insecure /entry-point.sh guix pull \
-	&& guix package -u \
-	&& guix package -i \
-		glibc-utf8-locales \
-		nss-certs
+	&& guix package -u
 
 ENTRYPOINT ["/entry-point.sh"]
 CMD ["sh"]
