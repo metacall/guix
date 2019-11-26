@@ -72,9 +72,7 @@ RUN apk add --no-cache --update --virtual .build-deps shadow \
 RUN --security=insecure /entry-point.sh guix pull \
 	&& guix package -i \
 		glibc-utf8-locales \
-		nss-certs \
-		cmake \
-		make
+		nss-certs
 
 ENTRYPOINT ["/entry-point.sh"]
 CMD ["sh"]
