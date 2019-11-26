@@ -35,6 +35,7 @@ ARG METACALL_GUIX_ARCH
 ENV GUIX_PROFILE="/root/.config/guix/current" \
 	GUIX_LOCPATH="/root/.guix-profile/lib/locale/" \
 	LANG="en_US.utf8" \
+	LC_ALL="en_US.utf8" \
 	LANGUAGE="en_US.utf8" \
 	SSL_CERT_DIR="/root/.guix-profile/etc/ssl/certs" \
 	GIT_SSL_FILE="/root/.guix-profile/etc/ssl/certs/ca-certificates.crt" \
