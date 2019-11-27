@@ -34,9 +34,6 @@ ARG METACALL_GUIX_ARCH
 
 ENV GUIX_PROFILE="/root/.config/guix/current" \
 	GUIX_LOCPATH="/root/.guix-profile/lib/locale/" \
-	LANG="en_US.utf8" \
-	LC_ALL="en_US.utf8" \
-	LANGUAGE="en_US.utf8" \
 	SSL_CERT_DIR="/root/.guix-profile/etc/ssl/certs" \
 	GIT_SSL_FILE="/root/.guix-profile/etc/ssl/certs/ca-certificates.crt" \
 	GIT_SSL_CAINFO="$GIT_SSL_FILE"
@@ -45,31 +42,30 @@ ENV GUIX_PROFILE="/root/.config/guix/current" \
 COPY scripts/entry-point.sh /entry-point.sh
 
 # Install Guix
-RUN apk add --no-cache --update --virtual .build-deps shadow \
+RUN export LANG="en_US.utf8" LC_ALL="en_US.utf8" LANGUAGE="en_US.utf8" \
 	&& mkdir -p /gnu/store \
 	&& addgroup guixbuild \
 	&& addgroup guix-builder \
 	&& chgrp guix-builder -R /gnu/store \
 	&& chmod 1775 /gnu/store \
 	&& for i in `seq -w 1 10`; do \
-			useradd -g guixbuild -G guixbuild -d /var/empty -s `which nologin` -c "Guix build user $i" --system guixbuilder$i; \
+			adduser -G guixbuild -h /var/empty -s `which nologin` -S guixbuilder$i; \
 		done \
-	&& apk del .build-deps \
 	&& wget -O - https://ftp.gnu.org/gnu/guix/guix-binary-${METACALL_GUIX_VERSION}.${METACALL_GUIX_ARCH}-linux.tar.xz | tar -xJv -C / \
 	&& mkdir -p /root/.config/guix \
 	&& ln -sf /var/guix/profiles/per-user/root/current-guix /root/.config/guix/current \
-	&& source $GUIX_PROFILE/etc/profile \
 	&& mkdir -p /usr/local/bin \
 	&& ln -s /var/guix/profiles/per-user/root/current-guix/bin/guix /usr/local/bin/ \
 	&& mkdir -p /usr/local/share/info \
 	&& for i in /var/guix/profiles/per-user/root/current-guix/share/info/*; do \
 			ln -s $i /usr/local/share/info/; \
 		done \
-	&& guix archive --authorize < /root/.config/guix/current/share/guix/ci.guix.gnu.org.pub \
 	&& chmod +x /entry-point.sh
 
 # Run pull (https://github.com/docker/buildx/blob/master/README.md#--allowentitlement)
-RUN --security=insecure /entry-point.sh guix pull \
+RUN --security=insecure /entry-point.sh \
+	guix archive --authorize < /root/.config/guix/current/share/guix/ci.guix.gnu.org.pub \
+	&& guix pull \
 	&& guix package -u
 
 ENTRYPOINT ["/entry-point.sh"]
