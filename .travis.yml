@@ -51,11 +51,8 @@ before_script:
   - |
     sh -c 'while true; do echo "."; sleep 60; done' &
     export TRAVIS_POLL_INSTALL=$!
-  - |
-    docker build --platform=local -o . git://github.com/docker/buildx > logs 2>&1
-    export INSTALL_RESULT=$?
+  - docker build --platform=local -o . git://github.com/docker/buildx > /dev/null 2>&1
   - kill -9 ${TRAVIS_POLL_INSTALL}
-  - if [ ! "$INSTALL_RESULT" = "0" ]; then tail -n 500 logs; fi
   - mkdir -p ~/.docker/cli-plugins/
   - mv buildx ~/.docker/cli-plugins/docker-buildx
 
@@ -66,8 +63,6 @@ script:
   - |
     sh -c 'while true; do echo "."; sleep 60; done' &
     export TRAVIS_POLL_BUILD=$!
-  - |
-    docker buildx build -t metacall/guix -o type=registry --allow security.insecure --build-arg METACALL_GUIX_VERSION="1.0.1" --build-arg METACALL_GUIX_ARCH="x86_64" . > logs 2>&1
-    export BUILD_RESULT=$?
+  - docker buildx build -t metacall/guix -o type=registry --allow security.insecure --build-arg METACALL_GUIX_VERSION="1.0.1" --build-arg METACALL_GUIX_ARCH="x86_64" . > logs 2>&1
   - kill -9 ${TRAVIS_POLL_BUILD}
-  - if [ ! "$BUILD_RESULT" = "0" ]; then tail -n 500 logs; fi
+  - tail -n 500 logs

@@ -36,10 +36,7 @@ ENV GUIX_PROFILE="/root/.config/guix/current" \
 	GUIX_LOCPATH="/root/.guix-profile/lib/locale/" \
 	SSL_CERT_DIR="/root/.guix-profile/etc/ssl/certs" \
 	GIT_SSL_FILE="/root/.guix-profile/etc/ssl/certs/ca-certificates.crt" \
-	GIT_SSL_CAINFO="$GIT_SSL_FILE" \
-	LANG="en_US.utf8" \
-	LC_ALL="en_US.utf8" \
-	LANGUAGE="en_US.utf8"
+	GIT_SSL_CAINFO="$GIT_SSL_FILE"
 
 # Copy entry point
 COPY scripts/entry-point.sh /entry-point.sh
