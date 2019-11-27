@@ -66,7 +66,7 @@ RUN mkdir -p /gnu/store \
 # Run pull (https://github.com/docker/buildx/blob/master/README.md#--allowentitlement)
 RUN --security=insecure /entry-point.sh guix pull \
 	&& guix package -u \
-	&& guix package -i \
+	&& guix package --fallback -i \
 		glibc-utf8-locales \
 		nss-certs
 
