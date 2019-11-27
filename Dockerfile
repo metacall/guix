@@ -19,7 +19,7 @@
 #	limitations under the License.
 #
 
-FROM alpine:latest AS guix
+FROM alpine:3.9 AS guix
 
 # Image descriptor
 LABEL copyright.name="Vicente Eduardo Ferrer Garcia" \
