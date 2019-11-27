@@ -42,7 +42,7 @@ ENV GUIX_PROFILE="/root/.config/guix/current" \
 COPY scripts/entry-point.sh /entry-point.sh
 
 # Install Guix
-RUN export LANG="en_US.utf8" LC_ALL="en_US.utf8" LANGUAGE="en_US.utf8" \
+RUN export LANG="en_US.utf8"; export LC_ALL="en_US.utf8"; export LANGUAGE="en_US.utf8" \
 	&& mkdir -p /gnu/store \
 	&& addgroup guixbuild \
 	&& addgroup guix-builder \
@@ -62,10 +62,12 @@ RUN export LANG="en_US.utf8" LC_ALL="en_US.utf8" LANGUAGE="en_US.utf8" \
 		done \
 	&& chmod +x /entry-point.sh
 
+# Enable guix ci certificate
+RUN source $GUIX_PROFILE/etc/profile \
+	&& guix archive --authorize < /root/.config/guix/current/share/guix/ci.guix.gnu.org.pub
+
 # Run pull (https://github.com/docker/buildx/blob/master/README.md#--allowentitlement)
-RUN --security=insecure /entry-point.sh \
-	guix archive --authorize < /root/.config/guix/current/share/guix/ci.guix.gnu.org.pub \
-	&& guix pull \
+RUN --security=insecure /entry-point.sh guix pull \
 	&& guix package -u
 
 ENTRYPOINT ["/entry-point.sh"]
