@@ -64,7 +64,7 @@ script:
   - docker buildx create --use --name insecure-builder --buildkitd-flags '--allow-insecure-entitlement security.insecure'
   - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
   - |
-    sh -c 'while true; do echo "."; sleep 60 done' &
+    sh -c 'while true; do echo "."; sleep 60; done' &
     export TRAVIS_POLL_BUILD=$!
   - |
     docker buildx build -t metacall/guix -o type=registry --allow security.insecure --build-arg METACALL_GUIX_VERSION="1.0.1" --build-arg METACALL_GUIX_ARCH="x86_64" . > logs 2>&1
