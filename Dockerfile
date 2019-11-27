@@ -36,14 +36,16 @@ ENV GUIX_PROFILE="/root/.config/guix/current" \
 	GUIX_LOCPATH="/root/.guix-profile/lib/locale/" \
 	SSL_CERT_DIR="/root/.guix-profile/etc/ssl/certs" \
 	GIT_SSL_FILE="/root/.guix-profile/etc/ssl/certs/ca-certificates.crt" \
-	GIT_SSL_CAINFO="$GIT_SSL_FILE"
+	GIT_SSL_CAINFO="$GIT_SSL_FILE" \
+	LANG="en_US.utf8" \
+	LC_ALL="en_US.utf8" \
+	LANGUAGE="en_US.utf8"
 
 # Copy entry point
 COPY scripts/entry-point.sh /entry-point.sh
 
 # Install Guix
-RUN export LANG="en_US.utf8"; export LC_ALL="en_US.utf8"; export LANGUAGE="en_US.utf8" \
-	&& mkdir -p /gnu/store \
+RUN mkdir -p /gnu/store \
 	&& addgroup guixbuild \
 	&& addgroup guix-builder \
 	&& chgrp guix-builder -R /gnu/store \
@@ -60,10 +62,8 @@ RUN export LANG="en_US.utf8"; export LC_ALL="en_US.utf8"; export LANGUAGE="en_US
 	&& for i in /var/guix/profiles/per-user/root/current-guix/share/info/*; do \
 			ln -s $i /usr/local/share/info/; \
 		done \
-	&& chmod +x /entry-point.sh
-
-# Enable guix ci certificate
-RUN source $GUIX_PROFILE/etc/profile \
+	&& chmod +x /entry-point.sh \
+	&& source $GUIX_PROFILE/etc/profile \
 	&& guix archive --authorize < /root/.config/guix/current/share/guix/ci.guix.gnu.org.pub
 
 # Run pull (https://github.com/docker/buildx/blob/master/README.md#--allowentitlement)
