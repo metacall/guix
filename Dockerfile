@@ -64,8 +64,13 @@ RUN mkdir -p /gnu/store \
 	&& guix archive --authorize < /root/.config/guix/current/share/guix/ci.guix.gnu.org.pub
 
 # Run pull (https://github.com/docker/buildx/blob/master/README.md#--allowentitlement)
-RUN --security=insecure /entry-point.sh guix pull \
-	&& guix package -u
+RUN --security=insecure /entry-point.sh guix pull
+
+# Restart with latest version of the daemon
+RUN --security=insecure /entry-point.sh guix pull --delete-generations \
+	&& guix gc --delete-generations \
+	&& guix gc --optimize \
+	&& guix gc
 
 ENTRYPOINT ["/entry-point.sh"]
 CMD ["sh"]

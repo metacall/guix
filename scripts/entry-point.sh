@@ -21,4 +21,6 @@
 
 source $GUIX_PROFILE/etc/profile
 /root/.config/guix/current/bin/guix-daemon --build-users-group=guixbuild &
+GUIX_DAEMON=$!
 exec "$@"
+kill -9 $GUIX_DAEMON
