@@ -67,9 +67,7 @@ RUN mkdir -p /gnu/store \
 RUN --security=insecure /entry-point.sh guix pull
 
 # Restart with latest version of the daemon
-RUN --security=insecure /entry-point.sh guix package --delete-generations \
-	&& guix gc --delete-generations \
-	&& guix gc --optimize \
+RUN --security=insecure /entry-point.sh guix gc --optimize \
 	&& guix gc
 
 ENTRYPOINT ["/entry-point.sh"]
