@@ -46,7 +46,7 @@ RUN mkdir -p /gnu/store \
 	&& addgroup guixbuild \
 	&& addgroup guix-builder \
 	&& chgrp guix-builder -R /gnu/store \
-	&& chmod 1775 /gnu/store \
+	&& chmod 1777 /gnu/store \
 	&& for i in `seq -w 1 10`; do \
 			adduser -G guixbuild -h /var/empty -s `which nologin` -S guixbuilder$i; \
 		done \
