@@ -35,8 +35,10 @@ ARG METACALL_GUIX_ARCH
 ENV GUIX_PROFILE="/root/.config/guix/current" \
 	GUIX_LOCPATH="/root/.guix-profile/lib/locale/" \
 	SSL_CERT_DIR="/root/.guix-profile/etc/ssl/certs" \
-	GIT_SSL_FILE="/root/.guix-profile/etc/ssl/certs/ca-certificates.crt" \
-	GIT_SSL_CAINFO="$GIT_SSL_FILE"
+	SSL_CERT_FILE="/root/.guix-profile/etc/ssl/certs/ca-certificates.crt" \
+	GIT_SSL_FILE="$SSL_CERT_FILE" \
+	GIT_SSL_CAINFO="$SSL_CERT_FILE" \
+	CURL_CA_BUNDLE="$SSL_CERT_FILE"
 
 # Copy entry point
 COPY scripts/entry-point.sh /entry-point.sh
@@ -68,7 +70,9 @@ RUN --security=insecure /entry-point.sh guix pull
 
 # Restart with latest version of the daemon
 RUN --security=insecure /entry-point.sh guix gc --optimize \
-	&& guix gc
+	&& guix gc \
+	&& guix package -i \
+		nss-certs
 
 ENTRYPOINT ["/entry-point.sh"]
 CMD ["sh"]
