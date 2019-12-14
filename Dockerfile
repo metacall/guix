@@ -71,7 +71,7 @@ RUN --security=insecure /entry-point.sh guix pull
 # Restart with latest version of the daemon
 RUN --security=insecure /entry-point.sh guix gc --optimize \
 	&& guix gc \
-	&& guix package -i \
+	&& guix package --fallback -i \
 		nss-certs
 
 ENTRYPOINT ["/entry-point.sh"]
