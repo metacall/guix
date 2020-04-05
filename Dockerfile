@@ -74,5 +74,8 @@ RUN --security=insecure /entry-point.sh guix gc --optimize \
 	&& guix package --fallback -i \
 		nss-certs
 
+# Clean the profile (avoids: https://www.mail-archive.com/help-guix@gnu.org/msg04836.html)
+RUN rm -rf /var/guix/profiles/per-user/root/*
+
 ENTRYPOINT ["/entry-point.sh"]
 CMD ["sh"]
