@@ -1,3 +1,3 @@
-- Produce a self contained image of GuixSD inside Docker removing Alpine from base image and using scratch. Possible solution:
-    * Multi-build stage and using GuixSD to pack itself. Then create a layer with GuixSD files only.
+- Produce a self contained image of Guix inside Docker removing Alpine from base image and using scratch. Possible solution:
+    * Multi-build stage and using Guix to pack itself. Then create a layer with Guix files only.
 - Implement multi-platform builds (https://github.com/docker/buildx) and (https://ftp.gnu.org/gnu/guix/).

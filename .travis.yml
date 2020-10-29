@@ -1,6 +1,6 @@
 #
 #	MetaCall Guix by Parra Studios
-#	Docker image for using GuixSD in a CI/CD environment.
+#	Docker image for using Guix in a CI/CD environment.
 #
 #	Copyright (C) 2016 - 2020 Vicente Eduardo Ferrer Garcia <vic798@gmail.com>
 #
