@@ -65,9 +65,6 @@ RUN mkdir -p /gnu/store \
 	&& source $GUIX_PROFILE/etc/profile \
 	&& guix archive --authorize < /root/.config/guix/current/share/guix/ci.guix.gnu.org.pub
 
-# Copy additional channels
-COPY channels/ /root/.config/guix/
-
 # Run pull (https://github.com/docker/buildx/blob/master/README.md#--allowentitlement)
 RUN --security=insecure /entry-point.sh guix pull
 
