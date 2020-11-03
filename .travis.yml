@@ -63,6 +63,6 @@ script:
   - |
     sh -c 'while true; do echo "."; sleep 60; done' &
     export TRAVIS_POLL_BUILD=$!
-  - docker buildx build -t metacall/guix -o type=registry --allow security.insecure --build-arg METACALL_GUIX_VERSION="1.0.1" --build-arg METACALL_GUIX_ARCH="x86_64" . > logs 2>&1
+  - docker buildx build -t metacall/guix -o type=registry --allow security.insecure --build-arg METACALL_GUIX_VERSION="1.1.0" --build-arg METACALL_GUIX_ARCH="x86_64" . > logs 2>&1
   - kill -9 ${TRAVIS_POLL_BUILD}
   - tail -n 500 logs

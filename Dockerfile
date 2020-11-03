@@ -65,14 +65,18 @@ RUN mkdir -p /gnu/store \
 	&& source $GUIX_PROFILE/etc/profile \
 	&& guix archive --authorize < /root/.config/guix/current/share/guix/ci.guix.gnu.org.pub
 
-# Run pull (https://github.com/docker/buildx/blob/master/README.md#--allowentitlement)
-RUN --security=insecure /entry-point.sh guix pull
+# Copy additional channels
+COPY channels/ /root/.config/guix/
 
-# Restart with latest version of the daemon
-RUN --security=insecure /entry-point.sh guix gc --optimize \
-	&& guix gc \
-	&& guix package --fallback -i \
-		nss-certs
+# Run pull (https://github.com/docker/buildx/blob/master/README.md#--allowentitlement)
+# Restart with latest version of the daemon and garbage collect
+RUN --security=insecure sh -c '/entry-point.sh guix pull' \
+	&& sh -c '/entry-point.sh guix gc --optimize && guix gc'
+
+# RUN --security=insecure /entry-point.sh guix gc --optimize \
+# 	&& guix gc \
+# 	&& guix package --fallback -i \
+# 		nss-certs
 
 # Clean the profile (avoids: https://www.mail-archive.com/help-guix@gnu.org/msg04836.html)
 RUN rm -rf /var/guix/profiles/per-user/root/*
