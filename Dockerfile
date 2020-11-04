@@ -71,7 +71,7 @@ COPY channels/ /root/.config/guix/
 # Run pull (https://github.com/docker/buildx/blob/master/README.md#--allowentitlement)
 # Restart with latest version of the daemon and garbage collect
 RUN --security=insecure sh -c '/entry-point.sh guix pull' \
-	&& sh -c '/entry-point.sh guix gc --optimize && guix gc && guix package --fallback -i nss-certs'
+	&& sh -c '/entry-point.sh guix package --fallback -i nss-certs && guix gc && guix gc --optimize'
 
 ENTRYPOINT ["/entry-point.sh"]
 CMD ["sh"]
