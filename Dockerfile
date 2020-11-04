@@ -73,8 +73,5 @@ COPY channels/ /root/.config/guix/
 RUN --security=insecure sh -c '/entry-point.sh guix pull' \
 	&& sh -c '/entry-point.sh guix gc --optimize && guix gc'
 
-# Clean the profile (avoids: https://www.mail-archive.com/help-guix@gnu.org/msg04836.html)
-RUN rm -rf /var/guix/profiles/per-user/root/*
-
 ENTRYPOINT ["/entry-point.sh"]
 CMD ["sh"]
