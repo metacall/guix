@@ -20,4 +20,4 @@
        (name 'guix)
        (url "https://git.savannah.gnu.org/git/guix.git")
        (branch "master")
-       (commit "658d28987fc6c3f01ca04184c04c6252c5a9126a")) ; v1.1.0
+       (commit "658d28987fc6c3f01ca04184c04c6252c5a9126a"))) ; v1.1.0

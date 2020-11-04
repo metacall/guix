@@ -73,11 +73,6 @@ COPY channels/ /root/.config/guix/
 RUN --security=insecure sh -c '/entry-point.sh guix pull' \
 	&& sh -c '/entry-point.sh guix gc --optimize && guix gc'
 
-# RUN --security=insecure /entry-point.sh guix gc --optimize \
-# 	&& guix gc \
-# 	&& guix package --fallback -i \
-# 		nss-certs
-
 # Clean the profile (avoids: https://www.mail-archive.com/help-guix@gnu.org/msg04836.html)
 RUN rm -rf /var/guix/profiles/per-user/root/*
 
