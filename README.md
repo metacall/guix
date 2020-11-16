@@ -46,10 +46,13 @@ This image encapsulates the Guix daemon. For now, Guix does not have a daemonles
     docker build --platform=local -o . git://github.com/docker/buildx
     mkdir -p ~/.docker/cli-plugins/
     mv buildx ~/.docker/cli-plugins/docker-buildx
+    ```
+    If you have it already installed, we need to create an insecure builder (this must be run only once):
+    ```sh
     # Create an insecure builder
     docker buildx create --use --name insecure-builder --buildkitd-flags '--allow-insecure-entitlement security.insecure'
     ```
-    If you have it already installed, just run this command:
+    Finally, for building the `Dockerfile` with the already created insecure builder, we have to run this command:
     ```sh
     # Build and push the image with buildx
     docker buildx build -t metacall/example -o type=registry --allow security.insecure .
