@@ -51,10 +51,11 @@ before_script:
   - |
     sh -c 'while true; do echo "."; sleep 60; done' &
     export TRAVIS_POLL_INSTALL=$!
-  - docker build --platform=local -o . git://github.com/docker/buildx > /dev/null 2>&1
+  - mkdir -vp ~/.docker/cli-plugins/
+  - curl -sL "https://github.com/docker/buildx/releases/download/v0.5.1/buildx-v0.5.1.linux-amd64" > ~/.docker/cli-plugins/docker-buildx
+  - chmod a+x ~/.docker/cli-plugins/docker-buildx
+  - docker buildx version
   - kill -9 ${TRAVIS_POLL_INSTALL}
-  - mkdir -p ~/.docker/cli-plugins/
-  - mv buildx ~/.docker/cli-plugins/docker-buildx
 
 # Run the build and packaging and upload the built images to DockerHub
 script:
