@@ -19,7 +19,7 @@
 #	limitations under the License.
 #
 
-FROM alpine:3.9 AS guix
+FROM alpine:3.14 AS guix
 
 # Image descriptor
 LABEL copyright.name="Vicente Eduardo Ferrer Garcia" \
@@ -31,14 +31,6 @@ LABEL copyright.name="Vicente Eduardo Ferrer Garcia" \
 
 ARG METACALL_GUIX_VERSION
 ARG METACALL_GUIX_ARCH
-
-ENV GUIX_PROFILE="/root/.config/guix/current" \
-	GUIX_LOCPATH="/root/.guix-profile/lib/locale/" \
-	SSL_CERT_DIR="/root/.guix-profile/etc/ssl/certs" \
-	SSL_CERT_FILE="/root/.guix-profile/etc/ssl/certs/ca-certificates.crt" \
-	GIT_SSL_FILE="/root/.guix-profile/etc/ssl/certs/ca-certificates.crt" \
-	GIT_SSL_CAINFO="/root/.guix-profile/etc/ssl/certs/ca-certificates.crt" \
-	CURL_CA_BUNDLE="/root/.guix-profile/etc/ssl/certs/ca-certificates.crt"
 
 # Copy entry point
 COPY scripts/entry-point.sh /entry-point.sh
@@ -65,13 +57,26 @@ RUN mkdir -p /gnu/store \
 	&& source $GUIX_PROFILE/etc/profile \
 	&& guix archive --authorize < /root/.config/guix/current/share/guix/ci.guix.gnu.org.pub
 
+ENV GUIX_PROFILE="/root/.config/guix/current" \
+	GUIX_LOCPATH="/root/.guix-profile/lib/locale/" \
+	LANG="en_US.UTF-8" \
+	SSL_CERT_DIR="/root/.guix-profile/etc/ssl/certs" \
+	SSL_CERT_FILE="/root/.guix-profile/etc/ssl/certs/ca-certificates.crt" \
+	GIT_SSL_FILE="/root/.guix-profile/etc/ssl/certs/ca-certificates.crt" \
+	GIT_SSL_CAINFO="/root/.guix-profile/etc/ssl/certs/ca-certificates.crt" \
+	CURL_CA_BUNDLE="/root/.guix-profile/etc/ssl/certs/ca-certificates.crt"
+
 # Copy additional channels
 COPY channels/ /root/.config/guix/
 
 # Run pull (https://github.com/docker/buildx/blob/master/README.md#--allowentitlement)
 # Restart with latest version of the daemon and garbage collect
-RUN --security=insecure sh -c '/entry-point.sh guix package --fallback -i nss-certs glibc-utf8-locales && guix pull' \
+RUN --security=insecure sh -c '/entry-point.sh guix pull && guix package --fallback -i glibc-utf8-locales nss-certs' \
 	&& sh -c '/entry-point.sh guix gc && guix gc --optimize'
+
+# Verify if the certificates exist and the version is correct (it is fixed to the channels.scm)
+RUN [ -e /root/.guix-profile/etc/ssl/certs/ca-certificates.crt ] \
+	&& [ "`cat /root/.config/guix/channels.scm | grep commit | cut -d'"' -f 2`" = "`guix --version | head -n 1 | awk '{print $NF}'`" ]
 
 ENTRYPOINT ["/entry-point.sh"]
 CMD ["sh"]

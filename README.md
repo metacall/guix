@@ -1,7 +1,7 @@
 # MetaCall Guix
 Docker image for using Guix in a CI/CD environment.
 
-# How to use it
+## How to use it
 
 This image encapsulates the Guix daemon. For now, Guix does not have a daemonless option, so packaging it into a Docker image has some implications. The Guix daemon needs to fork, and forking a process during build phase is not allowed, so we have to work with it in a different way. There are two options:
 
@@ -57,3 +57,14 @@ This image encapsulates the Guix daemon. For now, Guix does not have a daemonles
     # Build and push the image with buildx
     docker buildx build -t metacall/example -o type=registry --allow security.insecure .
     ```
+
+## Building the image locally
+
+For building it, we use `buildx` from Buildkit:
+
+```sh
+# Run the following command the first time only
+docker buildx create --use --name insecure-builder --buildkitd-flags '--allow-insecure-entitlement security.insecure'
+# Build the Guix image with the following command
+docker buildx build -t metacall/guix --allow security.insecure --build-arg METACALL_GUIX_VERSION="1.3.0" --build-arg METACALL_GUIX_ARCH="x86_64" .
+```
