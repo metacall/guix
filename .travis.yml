@@ -37,33 +37,33 @@ env:
     - DOCKER_BUILDKIT: 1
 
 # Update Docker
-before_script:
-  - curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
-  - sudo apt-key fingerprint 0EBFCD88
-  - sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable edge"
-  - sudo rm -rf /etc/apt/sources.list.d/pgdg.list
-  - sudo apt-get update
-  - apt-cache policy docker-ce
-  - sudo apt-get install -y docker-ce="5:${DOCKER_VERSION}~3-0~ubuntu-$(lsb_release -cs)"
-  - sudo mv daemon.json /etc/docker/daemon.json
-  - sudo systemctl restart docker
-  - docker version
-  - |
-    sh -c 'while true; do echo "."; sleep 60; done' &
-    export TRAVIS_POLL_INSTALL=$!
-  - mkdir -vp ~/.docker/cli-plugins/
-  - curl -sL "https://github.com/docker/buildx/releases/download/v0.5.1/buildx-v0.5.1.linux-amd64" > ~/.docker/cli-plugins/docker-buildx
-  - chmod a+x ~/.docker/cli-plugins/docker-buildx
-  - docker buildx version
-  - kill -9 ${TRAVIS_POLL_INSTALL}
+# before_script:
+#   - curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+#   - sudo apt-key fingerprint 0EBFCD88
+#   - sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable edge"
+#   - sudo rm -rf /etc/apt/sources.list.d/pgdg.list
+#   - sudo apt-get update
+#   - apt-cache policy docker-ce
+#   - sudo apt-get install -y docker-ce="5:${DOCKER_VERSION}~3-0~ubuntu-$(lsb_release -cs)"
+#   - sudo mv daemon.json /etc/docker/daemon.json
+#   - sudo systemctl restart docker
+#   - docker version
+#   - |
+#     sh -c 'while true; do echo "."; sleep 60; done' &
+#     export TRAVIS_POLL_INSTALL=$!
+#   - mkdir -vp ~/.docker/cli-plugins/
+#   - curl -sL "https://github.com/docker/buildx/releases/download/v0.5.1/buildx-v0.5.1.linux-amd64" > ~/.docker/cli-plugins/docker-buildx
+#   - chmod a+x ~/.docker/cli-plugins/docker-buildx
+#   - docker buildx version
+#   - kill -9 ${TRAVIS_POLL_INSTALL}
 
 # Run the build and packaging and upload the built images to DockerHub
-script:
-  - docker buildx create --use --name insecure-builder --buildkitd-flags '--allow-insecure-entitlement security.insecure'
-  - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
-  - |
-    sh -c 'while true; do echo "."; sleep 60; done' &
-    export TRAVIS_POLL_BUILD=$!
-  - docker buildx build -t metacall/guix -o type=registry --allow security.insecure --build-arg METACALL_GUIX_VERSION="1.3.0rc2" --build-arg METACALL_GUIX_ARCH="x86_64" . > logs 2>&1
-  - kill -9 ${TRAVIS_POLL_BUILD}
-  - tail -n 500 logs
+# script:
+#   - docker buildx create --use --name insecure-builder --buildkitd-flags '--allow-insecure-entitlement security.insecure'
+#   - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+#   - |
+#     sh -c 'while true; do echo "."; sleep 60; done' &
+#     export TRAVIS_POLL_BUILD=$!
+#   - docker buildx build -t metacall/guix -o type=registry --allow security.insecure --build-arg METACALL_GUIX_VERSION="1.3.0rc2" --build-arg METACALL_GUIX_ARCH="x86_64" . > logs 2>&1
+#   - kill -9 ${TRAVIS_POLL_BUILD}
+#   - tail -n 500 logs
