@@ -41,4 +41,4 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Build and push image
-        run: docker buildx build -t metacall/guix -o type=registry --allow security.insecure --build-arg METACALL_GUIX_VERSION="$METACALL_GUIX_VERSION" --build-arg METACALL_GUIX_ARCH="$METACALL_GUIX_ARCH" . > logs 2>&1
+        run: docker buildx build -t metacall/guix -o type=registry --allow security.insecure --build-arg METACALL_GUIX_VERSION="$METACALL_GUIX_VERSION" --build-arg METACALL_GUIX_ARCH="$METACALL_GUIX_ARCH" .
