@@ -66,5 +66,26 @@ For building it, we use `buildx` from Buildkit:
 # Run the following command the first time only
 docker buildx create --use --name insecure-builder --buildkitd-flags '--allow-insecure-entitlement security.insecure'
 # Build the Guix image with the following command
-docker buildx build -t metacall/guix --allow security.insecure --build-arg METACALL_GUIX_VERSION="1.3.0" --build-arg METACALL_GUIX_ARCH="x86_64" .
+docker buildx build -t metacall/guix --allow security.insecure --build-arg METACALL_GUIX_VERSION="1.4.0" --build-arg METACALL_GUIX_ARCH="x86_64" .
 ```
+
+## Troubleshooting
+
+If you get the following error:
+
+```sh
+error: failed to solve: granting entitlement security.insecure is not allowed by build daemon configuration
+```
+
+Run:
+
+```sh
+# This will select the insecure-builder previously created if it got unselected for some reason
+docker buildx use insecure-builder
+```
+
+## Use cases
+
+[`MetaCall Guix GCC Example`](https://github.com/metacall/guix-gcc-example): This repository demonstrates how to use MetaCall Guix Docker Image for building portable self contained packages, in this case GCC@2.95. The idea of this repository is to make a Proof of Concept for Blink Virtual Machine by using GCC and possibly try to do the same with MetaCall in the near future.
+
+[`MetaCall Linux Distributable`](https://github.com/metacall/distributable-linux): This repository provides a self-contained and portrable version of MetaCall Core for Linux.
