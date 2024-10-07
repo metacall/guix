@@ -72,7 +72,7 @@ jobs:
           allow: security.insecure
           build-args: |
             METACALL_GUIX_VERSION="$METACALL_GUIX_VERSION"
-            METACALL_GUIX_ARCH="${{ matrix.guix.platform }}"
+            METACALL_GUIX_ARCH="${{ matrix.platform.guix }}"
       
       - name: Export digest
         if: github.event_name != 'pull_request'
