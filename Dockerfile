@@ -44,7 +44,7 @@ RUN mkdir -p /gnu/store \
 	&& for i in `seq -w 1 10`; do \
 			adduser -G guixbuild -h /var/empty -s `which nologin` -S guixbuilder$i; \
 		done \
-	&& wget -O - https://ftp.gnu.org/gnu/guix/guix-binary-${METACALL_GUIX_VERSION}.${METACALL_GUIX_ARCH}-linux.tar.xz | tar -xJv -C / \
+	&& wget -O - https://ftp.gnu.org/gnu/guix/guix-binary-${METACALL_GUIX_VERSION}.${METACALL_GUIX_ARCH}.tar.xz | tar -xJv -C / \
 	&& mkdir -p /root/.config/guix \
 	&& ln -sf /var/guix/profiles/per-user/root/current-guix /root/.config/guix/current \
 	&& mkdir -p /usr/local/bin \
