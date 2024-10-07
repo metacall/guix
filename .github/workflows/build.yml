@@ -14,9 +14,9 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      DOCKER_BUILDKIT: 1
       REGISTRY_IMAGE: metacall/guix
-      METACALL_GUIX_VERSION: 1.4.0
+      GUIX_VERSION: 1.4.0
+      DOCKER_BUILDKIT: 1
 
     strategy:
       fail-fast: false
@@ -47,7 +47,7 @@ jobs:
       - name: Docker Setup BuildX
         uses: docker/setup-buildx-action@v3
         with:
-          version: v0.5.1
+          version: v${{ env.BUILDKIT_VERSION }
 
       - name: Verify Docker BuildX Version
         run: docker buildx version
@@ -71,7 +71,7 @@ jobs:
           outputs: type=image,name=docker.io/${{ env.REGISTRY_IMAGE }},push-by-digest=${{ github.event_name != 'pull_request' }},name-canonical=true,push=${{ github.event_name != 'pull_request' }}
           allow: security.insecure
           build-args: |
-            METACALL_GUIX_VERSION="$METACALL_GUIX_VERSION"
+            METACALL_GUIX_VERSION="${{ env.GUIX_VERSION }}"
             METACALL_GUIX_ARCH="${{ matrix.platform.guix }}"
       
       - name: Export digest
@@ -106,7 +106,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
         with:
-          version: v0.5.1
+          version: v${{ env.BUILDKIT_VERSION }}
       
       - name: Docker meta
         id: meta
