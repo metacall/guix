@@ -16,7 +16,7 @@ jobs:
     env:
       REGISTRY_IMAGE: metacall/guix
       GUIX_VERSION: 1.4.0
-      DOCKER_BUILDKIT: 1
+      BUILDKIT_VERSION: 0.5.1
 
     strategy:
       fail-fast: false
