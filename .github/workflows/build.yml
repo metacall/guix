@@ -71,8 +71,8 @@ jobs:
           outputs: type=image,name=docker.io/${{ env.REGISTRY_IMAGE }},push-by-digest=${{ github.event_name != 'pull_request' }},name-canonical=true,push=${{ github.event_name != 'pull_request' }}
           allow: security.insecure
           build-args: |
-            METACALL_GUIX_VERSION="${{ env.GUIX_VERSION }}"
-            METACALL_GUIX_ARCH="${{ matrix.platform.guix }}"
+            METACALL_GUIX_VERSION=${{ env.GUIX_VERSION }}
+            METACALL_GUIX_ARCH=${{ matrix.platform.guix }}
       
       - name: Export digest
         if: github.event_name != 'pull_request'
