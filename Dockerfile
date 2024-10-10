@@ -72,7 +72,7 @@ COPY channels/ /root/.config/guix/
 # Run pull (https://github.com/docker/buildx/blob/master/README.md#--allowentitlement)
 # Restart with latest version of the daemon and garbage collect
 # Verify if the certificates exist and the version is correct (it is fixed to the channels.scm)
-RUN --security=insecure sh -c '/entry-point.sh guix pull -C && guix package --fallback -i nss-certs' \
+RUN --security=insecure sh -c '/entry-point.sh guix pull && guix package --fallback -i nss-certs' \
 	&& sh -c '/entry-point.sh guix gc && guix gc --optimize' \
 	&& [ -e /root/.guix-profile/etc/ssl/certs/ca-certificates.crt ] \
 	&& [ "`cat /root/.config/guix/channels.scm | grep commit | cut -d'"' -f 2`" = "`guix --version | head -n 1 | awk '{print $NF}'`" ]
