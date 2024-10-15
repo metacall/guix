@@ -12,16 +12,15 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
+env:
+  REGISTRY_IMAGE: metacall/guix
+  GUIX_VERSION: 1.4.0
+  BUILDKIT_VERSION: 0.13.0
+
 jobs:
   build:
     name: Build the Docker image
     runs-on: ubuntu-latest
-
-    env:
-      REGISTRY_IMAGE: metacall/guix
-      GUIX_VERSION: 1.4.0
-      BUILDKIT_VERSION: 0.13.0
-
     strategy:
       fail-fast: false
       matrix:
