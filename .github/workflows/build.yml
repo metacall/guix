@@ -8,6 +8,10 @@ on:
     tags:
       - 'v*.*.*'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     name: Build the Docker image
@@ -35,12 +39,7 @@ jobs:
           # { docker: linux/ppc64le, guix: powerpc64le-linux }
         ]
 
-    steps:
-      - name: Prepare
-        run: |
-          platform=${{ matrix.docker.platform }}
-          echo "PLATFORM_PAIR=${platform//\//-}" >> $GITHUB_ENV
-      
+    steps:      
       - name: Docker meta
         id: meta
         uses: docker/metadata-action@v5
@@ -91,7 +90,7 @@ jobs:
         if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
         with:
-          name: digests-${{ env.PLATFORM_PAIR }}
+          name: digests-${{ matrix.guix.platform }}
           path: /tmp/digests/*
           if-no-files-found: error
           retention-days: 1
