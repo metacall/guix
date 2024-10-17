@@ -9,13 +9,17 @@ on:
     tags:
       - 'v*.*.*'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     name: Build the Docker image
     runs-on: ubuntu-latest
 
     env:
-      REGISTRY_IMAGE: yash/guixx
+      REGISTRY_IMAGE: mryash/guix
       GUIX_VERSION: 1.4.0
       BUILDKIT_VERSION: 0.13.0
 
@@ -24,10 +28,10 @@ jobs:
       matrix:
         platform: [
           { docker: linux/amd64, guix: x86_64-linux },
-          { docker: linux/386, guix: i686-linux },
-          # TODO: Uncomment these when the issues are resolved
-          # { docker: linux/arm/v7, guix: armhf-linux },
-          # { docker: linux/arm64/v8, guix: aarch64-linux },
+          { docker: linux/386, guix: i686-linux }
+          # TODO: 
+          # { docker: linux/arm/v7, guix: armhf-linux }, # guix error: cloning builder process: Invalid argument
+          # { docker: linux/arm64/v8, guix: aarch64-linux }, # ERROR: ResourceExhausted: cannot allocate memory
           # { docker: linux/ppc64le, guix: powerpc64le-linux }
         ]
 
@@ -81,7 +85,7 @@ jobs:
           mkdir -p /tmp/digests
           digest="${{ steps.build.outputs.digest }}"
           touch "/tmp/digests/${digest#sha256:}"
-      
+
       - name: Upload digest
         uses: actions/upload-artifact@v4
         with:
@@ -128,3 +132,7 @@ jobs:
             --annotation "org.opencontainers.image.authors=dvdksn" \
             $(jq -cr '.tags | map("--tag " + .) | join(" ")' <<< "${{ steps.meta.outputs.json }}") \
             $(printf '${{ env.REGISTRY_IMAGE }}@sha256:%s ' *)
+
+      - name: Inspect image
+        run: |
+          docker buildx imagetools inspect ${{ env.REGISTRY_IMAGE }}:${{ steps.meta.outputs.version }}
