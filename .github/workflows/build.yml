@@ -122,7 +122,7 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-            - name: Create manifest list and push
+      - name: Create manifest list and push
         working-directory: /tmp/digests
         run: |
           TAGS=$(jq -r '.tags[]' <<< "${{ steps.meta.outputs.json }}")
