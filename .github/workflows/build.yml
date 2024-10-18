@@ -10,7 +10,7 @@ on:
       - 'v*.*.*'
 
 env:
-  REGISTRY_IMAGE: mryash/guix
+  REGISTRY_IMAGE: mryash/guixx
   GUIX_VERSION: 1.4.0
   BUILDKIT_VERSION: 0.13.0
 
