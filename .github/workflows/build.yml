@@ -122,10 +122,11 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Create manifest list and push
+            - name: Create manifest list and push
         working-directory: /tmp/digests
         run: |
+          TAGS=$(jq -r '.tags[]' <<< "${{ steps.meta.outputs.json }}")
           docker buildx imagetools create \
             --annotation "org.opencontainers.image.authors=dvdksn" \
-            $(jq -cr '.tags | map("--tag " + .) | join(" ")' <<< "${{ steps.meta.outputs.json }}") \
+            ${TAGS} \
             $(printf '${{ env.REGISTRY_IMAGE }}@sha256:%s ' *)
