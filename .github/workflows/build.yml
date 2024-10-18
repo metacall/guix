@@ -125,8 +125,8 @@ jobs:
       - name: Create manifest list and push
         working-directory: /tmp/digests
         run: |
-          TAGS=$(jq -r '.tags[]' <<< "${{ steps.meta.outputs.json }}")
+          TAGS=$(echo '${{ steps.meta.outputs.json }}' | jq -r '.tags[]')
           docker buildx imagetools create \
-            --annotation "org.opencontainers.image.authors=dvdksn" \
-            ${TAGS} \
-            $(printf '${{ env.REGISTRY_IMAGE }}@sha256:%s ' *)
+          --annotation "org.opencontainers.image.authors=dvdksn" \
+          $(echo "$TAGS" | xargs -I {} echo '${{ env.REGISTRY_IMAGE }}:{}') \
+          $(printf '${{ env.REGISTRY_IMAGE }}@sha256:%s ' *)
