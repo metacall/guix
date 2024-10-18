@@ -9,26 +9,22 @@ on:
     tags:
       - 'v*.*.*'
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+env:
+  REGISTRY_IMAGE: mryash/guixxx
+  GUIX_VERSION: 1.4.0
+  BUILDKIT_VERSION: 0.13.0
 
 jobs:
   build:
     name: Build the Docker image
     runs-on: ubuntu-latest
 
-    env:
-      REGISTRY_IMAGE: mryash/guix
-      GUIX_VERSION: 1.4.0
-      BUILDKIT_VERSION: 0.13.0
-
     strategy:
       fail-fast: false
       matrix:
         platform: [
           { docker: linux/amd64, guix: x86_64-linux },
-          { docker: linux/386, guix: i686-linux }
+          { docker: linux/386, guix: i686-linux },
           # TODO: 
           # { docker: linux/arm/v7, guix: armhf-linux }, # guix error: cloning builder process: Invalid argument
           # { docker: linux/arm64/v8, guix: aarch64-linux }, # ERROR: ResourceExhausted: cannot allocate memory
@@ -40,7 +36,7 @@ jobs:
         run: |
           platform=${{ matrix.platform.docker }}
           echo "PLATFORM_PAIR=${platform//\//-}" >> $GITHUB_ENV
-      
+
       - name: Docker meta
         id: meta
         uses: docker/metadata-action@v5
@@ -79,7 +75,7 @@ jobs:
           build-args: |
             METACALL_GUIX_VERSION=${{ env.GUIX_VERSION }}
             METACALL_GUIX_ARCH=${{ matrix.platform.guix }}
-      
+
       - name: Export digest
         run: |
           mkdir -p /tmp/digests
@@ -100,6 +96,7 @@ jobs:
     if: github.event_name != 'pull_request'
     needs:
       - build
+
     steps:
       - name: Download digests
         uses: actions/download-artifact@v4
@@ -132,7 +129,3 @@ jobs:
             --annotation "org.opencontainers.image.authors=dvdksn" \
             $(jq -cr '.tags | map("--tag " + .) | join(" ")' <<< "${{ steps.meta.outputs.json }}") \
             $(printf '${{ env.REGISTRY_IMAGE }}@sha256:%s ' *)
-
-      - name: Inspect image
-        run: |
-          docker buildx imagetools inspect ${{ env.REGISTRY_IMAGE }}:${{ steps.meta.outputs.version }}
