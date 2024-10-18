@@ -126,7 +126,8 @@ jobs:
         working-directory: /tmp/digests
         run: |
           TAGS=$(echo '${{ steps.meta.outputs.json }}' | jq -r '.tags[]')
+          TAG_ARGS=$(echo "$TAGS" | sed 's/^/--tag /')
           docker buildx imagetools create \
           --annotation "org.opencontainers.image.authors=dvdksn" \
-          $(echo "$TAGS" | xargs -I {} echo '${{ env.REGISTRY_IMAGE }}:{}') \
+          $TAG_ARGS \
           $(printf '${{ env.REGISTRY_IMAGE }}@sha256:%s ' *)
