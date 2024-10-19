@@ -10,7 +10,7 @@ on:
       - 'v*.*.*'
 
 env:
-  REGISTRY_IMAGE: mryash/1.11
+  REGISTRY_IMAGE: mryash/2.22
   GUIX_VERSION: 1.4.0
   BUILDKIT_VERSION: 0.13.0
 
@@ -24,11 +24,11 @@ jobs:
       matrix:
         platform: [
           { docker: linux/amd64, guix: x86_64-linux },
-          { docker: linux/386, guix: i686-linux },
-          # TODO: 
-         # { docker: linux/arm/v7, guix: armhf-linux }, # guix error: cloning builder process: Invalid argument
-         # { docker: linux/arm64/v8, guix: aarch64-linux }, # ERROR: ResourceExhausted: cannot allocate memory
-         # { docker: linux/ppc64le, guix: powerpc64le-linux }
+          { docker: linux/386, guix: i686-linux }
+          # TODO: Uncomment architectures when fixed
+          # { docker: linux/arm/v7, guix: armhf-linux }, # Issue: Invalid argument
+          # { docker: linux/arm64/v8, guix: aarch64-linux }, # Issue: Cannot allocate memory
+          # { docker: linux/ppc64le, guix: powerpc64le-linux }
         ]
 
     steps:
@@ -125,6 +125,11 @@ jobs:
       - name: Create manifest list and push
         working-directory: /tmp/digests
         run: |
+          # Ensure that jq handles the outputs correctly
+          # Log the meta output to verify JSON structure
+          echo "Meta output JSON: ${{ steps.meta.outputs.json }}"
+
+          # Create the manifest with jq
           docker buildx imagetools create \
             --annotation "org.opencontainers.image.authors=dvdksn" \
             $(jq -cr '.tags | map("--tag " + .) | join(" ")' <<< "${{ steps.meta.outputs.json }}") \
