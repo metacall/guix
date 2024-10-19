@@ -10,7 +10,7 @@ on:
       - 'v*.*.*'
 
 env:
-  REGISTRY_IMAGE: mryash/guixx
+  REGISTRY_IMAGE: mryash/1.11
   GUIX_VERSION: 1.4.0
   BUILDKIT_VERSION: 0.13.0
 
@@ -26,9 +26,9 @@ jobs:
           { docker: linux/amd64, guix: x86_64-linux },
           { docker: linux/386, guix: i686-linux },
           # TODO: 
-          # { docker: linux/arm/v7, guix: armhf-linux }, # guix error: cloning builder process: Invalid argument
-          # { docker: linux/arm64/v8, guix: aarch64-linux }, # ERROR: ResourceExhausted: cannot allocate memory
-          # { docker: linux/ppc64le, guix: powerpc64le-linux } # ERROR: ResourceExhausted: cannot allocate memory
+          { docker: linux/arm/v7, guix: armhf-linux }, # guix error: cloning builder process: Invalid argument
+          { docker: linux/arm64/v8, guix: aarch64-linux }, # ERROR: ResourceExhausted: cannot allocate memory
+          { docker: linux/ppc64le, guix: powerpc64le-linux }
         ]
 
     steps:
@@ -71,7 +71,6 @@ jobs:
           platforms: ${{ matrix.platform.docker }}
           labels: ${{ steps.meta.outputs.labels }}
           outputs: type=image,name=${{ env.REGISTRY_IMAGE }},push-by-digest=true,name-canonical=true,push=true
-          tags: ${{ env.REGISTRY_IMAGE }}:latest
           allow: security.insecure
           build-args: |
             METACALL_GUIX_VERSION=${{ env.GUIX_VERSION }}
@@ -126,8 +125,7 @@ jobs:
       - name: Create manifest list and push
         working-directory: /tmp/digests
         run: |
-          TAGS=$(echo '${{ steps.meta.outputs.json }}' | jq -r '.tags[]')
-          TAG_ARGS=$(echo "$TAGS" | sed 's/^/--tag /')
           docker buildx imagetools create \
-          $TAG_ARGS \
-          $(printf '${{ env.REGISTRY_IMAGE }}@sha256:%s ' *)
+            --annotation "org.opencontainers.image.authors=dvdksn" \
+            $(jq -cr '.tags | map("--tag " + .) | join(" ")' <<< "${{ steps.meta.outputs.json }}") \
+            $(printf '${{ env.REGISTRY_IMAGE }}@sha256:%s ' *)
