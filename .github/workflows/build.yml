@@ -132,16 +132,9 @@ jobs:
       - name: Create manifest list and push
         working-directory: /tmp/digests
         run: |
-          echo "Meta output JSON: ${{ steps.meta.outputs.json }}"
-
-          # Extract tags using jq
-          tags=$(jq -cr '.tags | map("--tag " + .) | join(" ")' <<< "${{ steps.meta.outputs.json }}")
-          echo "Tags to be used: $tags"
-
-          # Loop through each digest and push the manifest
-          for digest in $(ls /tmp/digests); do
-            docker buildx imagetools create \
-              --annotation "org.opencontainers.image.authors=dvdksn" \
-              $tags \
-              "${{ env.REGISTRY_IMAGE }}@sha256:${digest}"
-          done
+          echo 'Meta output JSON: ${{ toJson(steps.meta.outputs.json) }}'
+    
+          docker buildx imagetools create \
+          --annotation "org.opencontainers.image.authors=dvdksn" \
+          $(echo '${{ toJson(steps.meta.outputs.json) }}' | jq -r '.tags | map("--tag " + .) | join(" ")') \
+          $(printf '${{ env.REGISTRY_IMAGE }}@sha256:%s ' *)
