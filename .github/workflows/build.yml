@@ -5,12 +5,11 @@ on:
   push:
     branches:
       - master
-      - feature/**
     tags:
       - 'v*.*.*'
 
 env:
-  REGISTRY_IMAGE: mryash/2.22
+  REGISTRY_IMAGE: metacall/guix
   GUIX_VERSION: 1.4.0
   BUILDKIT_VERSION: 0.13.0
 
