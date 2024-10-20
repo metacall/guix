@@ -130,7 +130,8 @@ jobs:
         working-directory: /tmp/digests
         run: |
           echo 'Meta output JSON: ${{ toJson(steps.meta.outputs.json) }}'
-          TAGS=$(echo '${{ toJson(steps.meta.outputs.json) }}' | jq -r '.tags[]' | xargs -I {} echo "--tag {}")
+          TAGS=$(echo '${{ steps.meta.outputs.json }}' | jq -r '.tags[]')
+          TAG_ARGS=$(echo "$TAGS" | sed 's/^/--tag /')
           docker buildx imagetools create \
-            $TAGS \
-            $(printf '${{ env.REGISTRY_IMAGE }}@sha256:%s ' *)
+          $TAG_ARGS \
+          $(printf '${{ env.REGISTRY_IMAGE }}@sha256:%s ' *)
