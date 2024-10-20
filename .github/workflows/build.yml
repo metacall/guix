@@ -130,8 +130,12 @@ jobs:
         working-directory: /tmp/digests
         run: |
           echo 'Meta output JSON: ${{ toJson(steps.meta.outputs.json) }}'
-          
+    
+          # Parse the JSON string and extract tags
+          TAGS=$(echo '${{ toJson(steps.meta.outputs.json) }}' | jq -r '.tags[]' | xargs -I {} echo "--tag {}")
+    
+          # Create the manifest list
           docker buildx imagetools create \
             --annotation "org.opencontainers.image.authors=dvdksn" \
-            $(echo '${{ toJson(steps.meta.outputs.json) }}' | jq -r '.tags | map("--tag " + .) | join(" ")') \
+            $TAGS \
             $(printf '${{ env.REGISTRY_IMAGE }}@sha256:%s ' *)
