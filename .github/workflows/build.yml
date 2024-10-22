@@ -29,10 +29,10 @@ jobs:
           { docker: linux/386, guix: i686-linux },
 
           # TODO:
-
+          #
           # guix error: cloning builder process: Invalid argument (https://lists.gnu.org/archive/html/help-guix/2017-12/msg00023.html)
           # { docker: linux/arm/v7, guix: armhf-linux },
-
+          #
           # ERROR: failed to solve: ResourceExhausted: process "/bin/sh -c sh -c '/entry-point.sh guix pull ..." did not complete successfully: cannot allocate memory
           # { docker: linux/arm64/v8, guix: aarch64-linux },
           # { docker: linux/ppc64le, guix: powerpc64le-linux }
@@ -44,7 +44,7 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY_IMAGE }}
-      
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
@@ -55,7 +55,7 @@ jobs:
 
       - name: Verify Docker BuildX Version
         run: docker buildx version
-      
+
       - name: Create a new builder instance
         run: docker buildx create --use --name insecure-builder --buildkitd-flags '--allow-insecure-entitlement security.insecure'
 
@@ -70,21 +70,21 @@ jobs:
         id: build
         uses: docker/build-push-action@v6
         with:
-          platforms: ${{ matrix.docker.platform }}
+          platforms: ${{ matrix.platform.docker }}
           labels: ${{ steps.meta.outputs.labels }}
           outputs: type=image,name=docker.io/${{ env.REGISTRY_IMAGE }},push-by-digest=${{ github.event_name != 'pull_request' }},name-canonical=true,push=${{ github.event_name != 'pull_request' }}
           allow: security.insecure
           build-args: |
             METACALL_GUIX_VERSION=${{ env.GUIX_VERSION }}
             METACALL_GUIX_ARCH=${{ matrix.platform.guix }}
-      
+
       - name: Export digest
         if: github.event_name != 'pull_request'
         run: |
           mkdir -p /tmp/digests
           digest="${{ steps.build.outputs.digest }}"
           touch "/tmp/digests/${digest#sha256:}"
-      
+
       - name: Upload digest
         if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
@@ -107,12 +107,12 @@ jobs:
           path: /tmp/digests
           pattern: digests-*
           merge-multiple: true
-      
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
         with:
           version: v${{ env.BUILDKIT_VERSION }}
-      
+
       - name: Docker meta
         id: meta
         uses: docker/metadata-action@v5
@@ -124,13 +124,15 @@ jobs:
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
-      
+
       - name: Create manifest list and push
         working-directory: /tmp/digests
         shell: bash
         run: |
           set -exuo pipefail
-          docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") $(printf '${{ env.REGISTRY_IMAGE }}@sha256:%s ' *)
+          IMAGE=$(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON")
+          HASH=$(printf '${{ env.REGISTRY_IMAGE }}@sha256:%s ' *)
+          docker buildx imagetools create $IMAGE $HASH
 
       - name: Inspect image
         run: |
