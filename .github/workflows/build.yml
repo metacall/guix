@@ -127,13 +127,15 @@ jobs:
 
       - name: Create manifest list and push
         working-directory: /tmp/digests
-        shell: bash
         run: |
-          set -exuo pipefail
-          IMAGE=$(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON")
-          HASH=$(printf '${{ env.REGISTRY_IMAGE }}@sha256:%s ' *)
-          docker buildx imagetools create $IMAGE $HASH
+          IMAGE_HASHES=$(printf '${{ env.REGISTRY_IMAGE }}@sha256:%s ' *)
+          docker buildx imagetools create -t ${{ env.REGISTRY_IMAGE }}:latest $IMAGE_HASHES
+          if [[ "${{ contains(github.ref, 'refs/tags/') }}" = true ]]; then
+            TAG=${GITHUB_REF#refs/*/}
+            VERSION=${TAG#v}
+            docker buildx imagetools create -t ${{ env.REGISTRY_IMAGE }}:${VERSION} $IMAGE_HASHES
+          fi
 
       - name: Inspect image
         run: |
-          docker buildx imagetools inspect ${{ env.REGISTRY_IMAGE }}:${{ steps.meta.outputs.version }}
+          docker buildx imagetools inspect ${{ env.REGISTRY_IMAGE }}:latest
