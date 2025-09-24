@@ -19,7 +19,7 @@
 #	limitations under the License.
 #
 
-FROM alpine:3.18 AS guix
+FROM alpine:3.22 AS guix
 
 # Image descriptor
 LABEL copyright.name="Vicente Eduardo Ferrer Garcia" \
@@ -34,6 +34,9 @@ ARG METACALL_GUIX_ARCH
 
 # Copy entry point
 COPY scripts/entry-point.sh /entry-point.sh
+
+# Copy substitute servers
+COPY substitutes/ /root/.config/guix/current/share/guix/
 
 # Install Guix
 RUN mkdir -p /gnu/store \
@@ -55,7 +58,7 @@ RUN mkdir -p /gnu/store \
 		done \
 	&& chmod +x /entry-point.sh \
 	&& source $GUIX_PROFILE/etc/profile \
-	&& guix archive --authorize < /root/.config/guix/current/share/guix/ci.guix.gnu.org.pub
+	&& for file in /root/.config/guix/current/share/guix/*.pub; do guix archive --authorize < ${file}; done
 
 ENV GUIX_PROFILE="/root/.config/guix/current" \
 	GUIX_LOCPATH="/root/.guix-profile/lib/locale/" \

@@ -18,7 +18,7 @@
 
 (list (channel
        (name 'guix)
-       (url "https://git.savannah.gnu.org/git/guix.git")
+       (url "https://codeberg.org/guix/guix.git")
        (branch "master")
        (commit "f0d4daa13f0b57f5c03af73d449b2c6dd3160d08")) ; 2025-02-17 14:29:56 +0100
 )
