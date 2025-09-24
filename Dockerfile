@@ -39,7 +39,8 @@ COPY scripts/entry-point.sh /entry-point.sh
 COPY substitutes/ /root/.config/guix/current/share/guix/
 
 # Install Guix
-RUN mkdir -p /gnu/store \
+RUN set -exuo pipefail \
+	&& mkdir -p /gnu/store \
 	&& addgroup guixbuild \
 	&& addgroup guix-builder \
 	&& chgrp guix-builder -R /gnu/store \
@@ -47,7 +48,7 @@ RUN mkdir -p /gnu/store \
 	&& for i in `seq -w 1 10`; do \
 			adduser -G guixbuild -h /var/empty -s `which nologin` -S guixbuilder$i; \
 		done \
-	&& wget -O - https://ftp.gnu.org/gnu/guix/guix-binary-${METACALL_GUIX_VERSION}.${METACALL_GUIX_ARCH}.tar.xz | tar -xJv -C / \
+	&& wget -O - https://ftpmirror.gnu.org/gnu/guix/guix-binary-${METACALL_GUIX_VERSION}.${METACALL_GUIX_ARCH}.tar.xz | tar -xJv -C / \
 	&& mkdir -p /root/.config/guix \
 	&& ln -sf /var/guix/profiles/per-user/root/current-guix /root/.config/guix/current \
 	&& mkdir -p /usr/local/bin \
@@ -57,8 +58,10 @@ RUN mkdir -p /gnu/store \
 			ln -s $i /usr/local/share/info/; \
 		done \
 	&& chmod +x /entry-point.sh \
-	&& source $GUIX_PROFILE/etc/profile \
-	&& for file in /root/.config/guix/current/share/guix/*.pub; do guix archive --authorize < ${file}; done
+	&& source /root/.config/guix/current/etc/profile \
+	&& for file in /root/.config/guix/current/share/guix/*.pub; do \
+			guix archive --authorize < ${file}; \
+		done
 
 ENV GUIX_PROFILE="/root/.config/guix/current" \
 	GUIX_LOCPATH="/root/.guix-profile/lib/locale/" \

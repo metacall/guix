@@ -28,7 +28,7 @@ source $GUIX_PROFILE/etc/profile
 SUBSTITUTE_URLS="https://cuirass.genenetwork.org https://ci.guix.gnu.org https://bordeaux.guix.gnu.org"
 
 # Run guix daemon
-/root/.config/guix/current/bin/guix-daemon --build-users-group=guixbuild --substitute-urls="${SUBSTITUTE_URLS} &
+/root/.config/guix/current/bin/guix-daemon --build-users-group=guixbuild --substitute-urls="${SUBSTITUTE_URLS}" &
 GUIX_DAEMON=$!
 
 # Execute commands
