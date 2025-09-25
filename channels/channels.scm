@@ -20,5 +20,9 @@
        (name 'guix)
        (url "https://codeberg.org/guix/guix.git")
        (branch "master")
-       (commit "f0d4daa13f0b57f5c03af73d449b2c6dd3160d08")) ; 2025-02-17 14:29:56 +0100
+       (introduction
+              (make-channel-introduction
+                     "f0d4daa13f0b57f5c03af73d449b2c6dd3160d08" ; 2025-02-17 14:29:56 +0100
+              (openpgp-fingerprint
+                     "BCA689B636553801C3C62150197A5888235FACAC")))) ; git verify-commit <commit-hash>
 )

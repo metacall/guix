@@ -66,7 +66,7 @@ For building it, we use `buildx` from Buildkit:
 # Run the following command the first time only
 docker buildx create --use --name insecure-builder --buildkitd-flags '--allow-insecure-entitlement security.insecure'
 # Build the Guix image with the following command
-docker buildx build -t metacall/guix --allow security.insecure --build-arg METACALL_GUIX_VERSION="1.4.0" --build-arg METACALL_GUIX_ARCH="x86_64" .
+docker buildx build -t metacall/guix --allow security.insecure --build-arg METACALL_GUIX_VERSION="1.4.0" --build-arg METACALL_GUIX_ARCH="x86_64-linux" .
 ```
 
 ## Troubleshooting

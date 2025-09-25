@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 #
 #	MetaCall Guix by Parra Studios
@@ -22,13 +22,13 @@
 set -exuo pipefail
 
 # Load profile enviroment variables
-source $GUIX_PROFILE/etc/profile
+source ${GUIX_PROFILE}/etc/profile
 
 # Substitute servers
-SUBSTITUTE_URLS="https://cuirass.genenetwork.org https://ci.guix.gnu.org https://bordeaux.guix.gnu.org"
+SUBSTITUTE_URLS="https://ci.guix.gnu.org https://bordeaux.guix.gnu.org"
 
 # Run guix daemon
-/root/.config/guix/current/bin/guix-daemon --build-users-group=guixbuild --substitute-urls="${SUBSTITUTE_URLS}" &
+${GUIX_PROFILE}/bin/guix-daemon --build-users-group=guix-builder --substitute-urls="${SUBSTITUTE_URLS}" &
 GUIX_DAEMON=$!
 
 # Execute commands
