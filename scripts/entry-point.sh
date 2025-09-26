@@ -24,8 +24,56 @@ set -exuo pipefail
 # Load profile enviroment variables
 source ${GUIX_PROFILE}/etc/profile
 
-# Substitute servers
-SUBSTITUTE_URLS="https://ci.guix.gnu.org https://bordeaux.guix.gnu.org"
+# Substitute servers global variable
+SUBSTITUTE_URLS=""
+
+# Function to add substitute URLs
+function substitute_urls() {
+    local input
+
+    # Read all input, replace newlines with spaces and trim leading/trailing whitespace
+    input=$(cat | tr '\n' ' ' | xargs)
+
+    # Append to global variable
+    SUBSTITUTE_URLS="${SUBSTITUTE_URLS} ${input}"
+}
+
+# Official build farms
+substitute_urls <<EOF
+https://ci.guix.gnu.org
+https://bordeaux.guix.gnu.org
+EOF
+
+# Unofficial mirrors (sharing same public keys of official farms)
+substitute_urls <<EOF
+https://bordeaux-us-east-mirror.cbaines.net
+https://hydra-guix-129.guix.gnu.org
+https://bordeaux-guix.jing.rocks
+https://mirror.yandex.ru/mirrors/guix/
+https://mirrors.sjtug.sjtu.edu.cn/guix
+https://berlin-guix.jing.rocks
+https://bordeaux-singapore-mirror.cbaines.net
+EOF
+
+# Genenetwork mirror (USA)
+substitute_urls <<EOF
+https://cuirass.genenetwork.org
+EOF
+
+# Tobias (Germany)
+substitute_urls <<EOF
+https://guix.tobias.gr
+EOF
+
+# Guix Moe CI
+substitute_urls <<EOF
+https://cache-cdn.guix.moe
+https://cache-de.guix.moe
+https://cache-fi.guix.moe
+https://cache-us-lax.guix.moe
+https://cache-sg.guix.moe
+https://cache-it.guix.moe
+EOF
 
 # Run guix daemon
 ${GUIX_PROFILE}/bin/guix-daemon --build-users-group=guix-builder --substitute-urls="${SUBSTITUTE_URLS}" &

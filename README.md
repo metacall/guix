@@ -69,6 +69,11 @@ docker buildx create --use --name insecure-builder --buildkitd-flags '--allow-in
 docker buildx build -t metacall/guix --allow security.insecure --build-arg METACALL_GUIX_VERSION="1.4.0" --build-arg METACALL_GUIX_ARCH="x86_64-linux" .
 ```
 
+## Adding substitute servers
+
+Add all your substitutes public keys in the [substitutes](./substitutes) folder, they must end with .pub extension
+Later on add the URL of your substitute server in `SUBSTITUTE_URLS` list on [scripts/entry-point.sh](./scripts/entry-point.sh).
+
 ## Troubleshooting
 
 If you get the following error:
