@@ -50,10 +50,12 @@ https://bordeaux-us-east-mirror.cbaines.net
 https://hydra-guix-129.guix.gnu.org
 https://bordeaux-guix.jing.rocks
 https://mirror.yandex.ru/mirrors/guix/
-https://mirrors.sjtug.sjtu.edu.cn/guix
 https://berlin-guix.jing.rocks
 https://bordeaux-singapore-mirror.cbaines.net
 EOF
+
+# Unofficial mirrors removed because of slow connection problems:
+# https://mirrors.sjtug.sjtu.edu.cn/guix
 
 # Genenetwork mirror (USA)
 substitute_urls <<EOF
