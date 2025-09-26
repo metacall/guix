@@ -1,0 +1,6 @@
+(public-key 
+    (ecc 
+        (curve Ed25519)
+        (q #628CD75C05C78223317092AFDCBE7130D363ACA938114A067F4F9DCF346B59DB#)
+    )
+)
