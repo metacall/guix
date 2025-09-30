@@ -46,6 +46,7 @@ jobs:
           images: ${{ env.REGISTRY_IMAGE }}
 
       - name: Set up QEMU
+        if: ${{ matrix.docker != 'linux/amd64' }}
         uses: docker/setup-qemu-action@v3
 
       - name: Docker Setup BuildX
