@@ -68,9 +68,9 @@ jobs:
         with:
           platforms: ${{ matrix.platform.docker }}
           labels: ${{ steps.meta.outputs.labels }}
-          outputs: |
-            type=image,name=docker.io/${{ env.REGISTRY_IMAGE }},push-by-digest=${{ github.event_name != 'pull_request' }},name-canonical=true,push=${{ github.event_name != 'pull_request' }}
-            type=docker
+          outputs: type=image,name=docker.io/${{ env.REGISTRY_IMAGE }},push-by-digest=${{ github.event_name != 'pull_request' }},name-canonical=true,push=${{ github.event_name != 'pull_request' }}
+          load: true
+          tags: ${{ env.REGISTRY_IMAGE }}
           allow: security.insecure
           build-args: |
             METACALL_GUIX_VERSION=${{ env.GUIX_VERSION }}
@@ -79,7 +79,7 @@ jobs:
 
       - name: Test
         run: |
-          docker run --rm -v $(pwd)/test/test.sh:/root/test.sh docker.io/${{ env.REGISTRY_IMAGE }} bash /root/test.sh
+          docker run --rm -v $(pwd)/test/:/root/test/ ${{ env.REGISTRY_IMAGE }} bash /root/test/test.sh
 
       - name: Export digest
         if: github.event_name != 'pull_request'
