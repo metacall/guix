@@ -45,6 +45,7 @@ https://bordeaux.guix.gnu.org
 EOF
 
 # Unofficial mirrors (sharing same public keys of official farms)
+# https://libreplanet.org/wiki/Group:Guix/Mirrors
 substitute_urls <<EOF
 https://bordeaux-us-east-mirror.cbaines.net
 https://hydra-guix-129.guix.gnu.org
@@ -55,16 +56,12 @@ https://bordeaux-singapore-mirror.cbaines.net
 EOF
 
 # Unofficial mirrors removed because of slow connection problems:
-# https://mirrors.sjtug.sjtu.edu.cn/guix
+# https://mirrors.sjtug.sjtu.edu.cn/guix # Unnoficial mirror (People's Republic of China)
+# https://guix.tobias.gr # Tobias (Germany)
 
 # Genenetwork mirror (USA)
 substitute_urls <<EOF
 https://cuirass.genenetwork.org
-EOF
-
-# Tobias (Germany)
-substitute_urls <<EOF
-https://guix.tobias.gr
 EOF
 
 # Guix Moe CI
@@ -78,8 +75,9 @@ https://cache-it.guix.moe
 EOF
 
 # Define extra arguments depending on the architecture
+ARCH=$(uname -m)
 GUIX_DAEMON_EXTRA_ARGS=""
-case $(uname -m) in
+case ${ARCH} in
     armv7l)
     # guix error: cloning builder process: Invalid argument (https://lists.gnu.org/archive/html/help-guix/2017-12/msg00023.html)
 	GUIX_DAEMON_EXTRA_ARGS="--disable-chroot";;

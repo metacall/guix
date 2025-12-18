@@ -73,6 +73,12 @@ jobs:
           build-args: |
             METACALL_GUIX_VERSION=${{ env.GUIX_VERSION }}
             METACALL_GUIX_ARCH=${{ matrix.platform.guix }}
+          cache-from: type=registry,ref=docker.io/${{ env.REGISTRY_IMAGE }}
+          cache-to: type=inline
+
+      - name: Run Docker image test
+        run: |
+          docker run --rm -v $(pwd)/test.sh:/root/test.sh docker.io/${{ env.REGISTRY_IMAGE }} bash /root/test.sh
 
       - name: Export digest
         if: github.event_name != 'pull_request'
