@@ -76,7 +76,7 @@ jobs:
           cache-from: type=registry,ref=docker.io/${{ env.REGISTRY_IMAGE }}
           cache-to: type=inline
 
-      - name: Run Docker image test
+      - name: Test
         run: |
           docker run --rm -v $(pwd)/test.sh:/root/test.sh docker.io/${{ env.REGISTRY_IMAGE }} bash /root/test.sh
 
