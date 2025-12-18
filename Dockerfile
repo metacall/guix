@@ -93,7 +93,7 @@ COPY scripts/etc/services /etc/services
 
 # Run pull (https://github.com/docker/buildx/blob/master/README.md#--allowentitlement)
 # Restart with latest version of the daemon and garbage collect
-RUN --security=insecure sh -c '/entry-point.sh guix pull && guix package --fallback -i nss-certs' \
+RUN --security=insecure sh -c '/entry-point.sh guix pull --fallback && guix package --fallback -i nss-certs' \
 	&& sh -c '/entry-point.sh guix gc && guix gc --optimize'
 
 ENTRYPOINT ["/entry-point.sh"]
