@@ -77,8 +77,16 @@ https://cache-sg.guix.moe
 https://cache-it.guix.moe
 EOF
 
+# Define extra arguments depending on the architecture
+GUIX_DAEMON_EXTRA_ARGS=""
+case $(uname -m) in
+    armv7l)
+    # guix error: cloning builder process: Invalid argument (https://lists.gnu.org/archive/html/help-guix/2017-12/msg00023.html)
+	GUIX_DAEMON_EXTRA_ARGS="--disable-chroot";;
+esac
+
 # Run guix daemon
-${GUIX_PROFILE}/bin/guix-daemon --build-users-group=guix-builder --substitute-urls="${SUBSTITUTE_URLS}" &
+${GUIX_PROFILE}/bin/guix-daemon ${GUIX_DAEMON_EXTRA_ARGS} --build-users-group=guix-builder --substitute-urls="${SUBSTITUTE_URLS}" &
 GUIX_DAEMON=$!
 
 # Execute commands

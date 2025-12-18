@@ -27,12 +27,8 @@ jobs:
         platform: [
           { docker: linux/amd64, guix: x86_64-linux },
           { docker: linux/386, guix: i686-linux },
+          { docker: linux/arm/v7, guix: armhf-linux },
 
-          # TODO:
-          #
-          # guix error: cloning builder process: Invalid argument (https://lists.gnu.org/archive/html/help-guix/2017-12/msg00023.html)
-          # { docker: linux/arm/v7, guix: armhf-linux },
-          #
           # ERROR: failed to solve: ResourceExhausted: process "/bin/sh -c sh -c '/entry-point.sh guix pull ..." did not complete successfully: cannot allocate memory
           # { docker: linux/arm64/v8, guix: aarch64-linux },
           # { docker: linux/ppc64le, guix: powerpc64le-linux }
