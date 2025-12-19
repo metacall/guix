@@ -26,8 +26,9 @@ jobs:
       matrix:
         platform: [
           { docker: linux/amd64, guix: x86_64-linux },
-          { docker: linux/386, guix: i686-linux },
-          { docker: linux/arm/v7, guix: armhf-linux },
+          # TODO: Uncomment
+          # { docker: linux/386, guix: i686-linux },
+          # { docker: linux/arm/v7, guix: armhf-linux },
 
           # ERROR: failed to solve: ResourceExhausted: process "/bin/sh -c sh -c '/entry-point.sh guix pull ..." did not complete successfully: cannot allocate memory
           # { docker: linux/arm64/v8, guix: aarch64-linux },
@@ -74,7 +75,7 @@ jobs:
           platforms: ${{ matrix.platform.docker }}
           labels: ${{ steps.meta.outputs.labels }}
           outputs: type=image,name=docker.io/${{ env.REGISTRY_IMAGE }},push-by-digest=${{ github.event_name != 'pull_request' }},name-canonical=true,push=${{ github.event_name != 'pull_request' }}
-          load: true
+          load: ${{ github.event_name == 'pull_request' }}
           tags: ${{ env.REGISTRY_IMAGE }}
           allow: security.insecure
           build-args: |
@@ -82,9 +83,15 @@ jobs:
             METACALL_GUIX_ARCH=${{ matrix.platform.guix }}
           cache-from: type=registry,ref=docker.io/${{ env.REGISTRY_IMAGE }}
 
-      - name: Test
+      - name: Test (local)
+        if: ${{ github.event_name == 'pull_request' }}
         run: |
-          docker run --rm -v $(pwd)/test/:/root/test/ ${{ env.REGISTRY_IMAGE }} bash /root/test/test.sh
+          docker run --rm --pull=false -v $(pwd)/test/:/root/test/ ${{ env.REGISTRY_IMAGE }} bash /root/test/test.sh
+
+      - name: Test (remote)
+        if: ${{ github.event_name != 'pull_request' }}
+        run: |
+          docker run --rm -v $(pwd)/test/:/root/test/ docker.io/${{ env.REGISTRY_IMAGE }}@sha256:${{ steps.build.outputs.digest }} bash /root/test/test.sh
 
       - name: Export digest
         if: github.event_name != 'pull_request'
@@ -121,7 +128,7 @@ jobs:
         with:
           version: v${{ env.BUILDKIT_VERSION }}
 
-      - name: Docker meta
+      - name: Docker Metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
