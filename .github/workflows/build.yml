@@ -34,8 +34,13 @@ jobs:
           # { docker: linux/ppc64le, guix: powerpc64le-linux }
         ]
 
-    steps:      
-      - name: Docker meta
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Docker Metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
