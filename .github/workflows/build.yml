@@ -143,7 +143,7 @@ jobs:
         with:
           version: v${{ env.BUILDKIT_VERSION }}
 
-      - name: Docker meta
+      - name: Docker Metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
@@ -158,34 +158,8 @@ jobs:
       - name: Create manifest list and push
         working-directory: /tmp/digests
         run: |
-          # List all digest files
-          echo "Digest files:"
-          ls -la
-          
-          # Count digests
-          DIGEST_COUNT=$(ls -1 | wc -l)
-          echo "Found $DIGEST_COUNT digests (expected 5)"
-          
-          # Check if we have any digests
-          if [ "$DIGEST_COUNT" -eq 0 ]; then
-            echo "ERROR: No digest files found!"
-            exit 1
-          fi
-          
-          # Warn if not all platforms built
-          if [ "$DIGEST_COUNT" -lt 5 ]; then
-            echo "WARNING: Only $DIGEST_COUNT of 5 platforms built successfully"
-            echo "Continuing with partial manifest..."
-          fi
-          
-          # Create image hash list
           IMAGE_HASHES=$(printf '${{ env.REGISTRY_IMAGE }}@sha256:%s ' *)
-          echo "Image hashes: $IMAGE_HASHES"
-          
-          # Create and push manifest
           docker buildx imagetools create -t ${{ env.REGISTRY_IMAGE }}:latest $IMAGE_HASHES
-          
-          # Create tagged version if this is a tag
           if [[ "${{ contains(github.ref, 'refs/tags/') }}" = true ]]; then
             TAG=${GITHUB_REF#refs/*/}
             VERSION=${TAG#v}
