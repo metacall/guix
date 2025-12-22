@@ -76,10 +76,20 @@ EOF
 
 # Define extra arguments depending on the architecture
 ARCH=$(uname -m)
+echo "Detected architecture: ${ARCH}"
 GUIX_DAEMON_EXTRA_ARGS=""
 case ${ARCH} in
-    armv7l)
+    armv7l|armv7*|arm|armhf)
     # guix error: cloning builder process: Invalid argument (https://lists.gnu.org/archive/html/help-guix/2017-12/msg00023.html)
+	echo "ARM v7 detected, adding --disable-chroot flag"
+	GUIX_DAEMON_EXTRA_ARGS="--disable-chroot";;
+    aarch64|arm64)
+    # ARM64 also needs --disable-chroot under QEMU emulation
+	echo "ARM64 detected, adding --disable-chroot flag"
+	GUIX_DAEMON_EXTRA_ARGS="--disable-chroot";;
+    ppc64le|powerpc64le)
+    # PowerPC64 LE also needs --disable-chroot under QEMU emulation
+	echo "PowerPC64 LE detected, adding --disable-chroot flag"
 	GUIX_DAEMON_EXTRA_ARGS="--disable-chroot";;
 esac
 

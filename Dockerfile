@@ -26,9 +26,16 @@ RUN apt-get update \
 
 ARG METACALL_GUIX_VERSION
 ARG METACALL_GUIX_ARCH
+ARG GUIX_BINARY_URL
 
 # Download and unpack Guix binary distribution
-RUN wget -O - https://ftpmirror.gnu.org/gnu/guix/guix-binary-${METACALL_GUIX_VERSION}.${METACALL_GUIX_ARCH}.tar.xz | tar -xJv -C /
+RUN if [ -n "${GUIX_BINARY_URL}" ]; then \
+		echo "Downloading from: ${GUIX_BINARY_URL}"; \
+		wget -O - "${GUIX_BINARY_URL}" | tar -xJv -C /; \
+	else \
+		echo "Downloading from GNU mirrors"; \
+		wget -O - https://ftpmirror.gnu.org/gnu/guix/guix-binary-${METACALL_GUIX_VERSION}.${METACALL_GUIX_ARCH}.tar.xz | tar -xJv -C /; \
+	fi
 
 FROM debian:trixie-slim AS guix
 
@@ -93,7 +100,15 @@ COPY scripts/etc/services /etc/services
 
 # Run pull (https://github.com/docker/buildx/blob/master/README.md#--allowentitlement)
 # Restart with latest version of the daemon and garbage collect
-RUN --security=insecure sh -c '/entry-point.sh guix pull --fallback && guix package --fallback -i nss-certs' \
+# SKIP_GUIX_PULL can be set to "true" to skip guix pull (faster for slow architectures)
+ARG SKIP_GUIX_PULL=false
+RUN --security=insecure sh -c "if [ \"${SKIP_GUIX_PULL}\" = \"true\" ]; then \
+		echo 'Skipping guix pull for faster build...'; \
+		/entry-point.sh guix package --fallback -i nss-certs; \
+	else \
+		echo 'Running guix pull...'; \
+		/entry-point.sh guix pull --fallback && guix package --fallback -i nss-certs; \
+	fi" \
 	&& sh -c '/entry-point.sh guix gc && guix gc --optimize'
 
 ENTRYPOINT ["/entry-point.sh"]
