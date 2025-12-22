@@ -28,7 +28,6 @@ if [[ ! -e /root/.guix-profile/etc/ssl/certs/ca-certificates.crt ]]; then
 fi
 
 # Verify Guix is working
-# Disable pipefail temporarily to avoid broken pipe error from head
 set +o pipefail
 GUIX_VERSION=$(guix --version 2>/dev/null | head -n 1 | awk '{print $NF}' || echo "unknown")
 set -o pipefail
