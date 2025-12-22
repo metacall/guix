@@ -94,6 +94,7 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           outputs: type=image,name=docker.io/${{ env.REGISTRY_IMAGE }},push-by-digest=${{ github.event_name != 'pull_request' }},name-canonical=true,push=${{ github.event_name != 'pull_request' }}
           tags: ${{ env.REGISTRY_IMAGE }}
+          load: true
           allow: security.insecure
           build-args: |
             METACALL_GUIX_VERSION=${{ env.GUIX_VERSION }}
@@ -103,16 +104,9 @@ jobs:
           cache-from: type=registry,ref=docker.io/${{ env.REGISTRY_IMAGE }}
           cache-to: type=inline
 
-      - name: Pull image for testing
-        if: github.event_name != 'pull_request'
-        run: |
-          docker pull ${{ env.REGISTRY_IMAGE }}@${{ steps.build.outputs.digest }}
-          docker tag ${{ env.REGISTRY_IMAGE }}@${{ steps.build.outputs.digest }} ${{ env.REGISTRY_IMAGE }}:test
-
       - name: Test
-        if: github.event_name != 'pull_request'
         run: |
-          docker run --rm --privileged -v $(pwd)/test/:/root/test/ ${{ env.REGISTRY_IMAGE }}:test /root/test/test.sh
+          docker run --rm --privileged -v $(pwd)/test/:/root/test/ ${{ env.REGISTRY_IMAGE }} /root/test/test.sh
 
       - name: Export digest
         if: github.event_name != 'pull_request'
