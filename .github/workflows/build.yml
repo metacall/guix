@@ -21,18 +21,18 @@ jobs:
   build:
     name: Build the Docker image
     runs-on: ubuntu-latest
+    timeout-minutes: 360 
     strategy:
       fail-fast: false
       matrix:
         platform: [
-          { docker: linux/amd64, guix: x86_64-linux },
-          # TODO: Uncomment
-          # { docker: linux/386, guix: i686-linux },
-          # { docker: linux/arm/v7, guix: armhf-linux },
-
-          # ERROR: failed to solve: ResourceExhausted: process "/bin/sh -c sh -c '/entry-point.sh guix pull ..." did not complete successfully: cannot allocate memory
-          # { docker: linux/arm64/v8, guix: aarch64-linux },
-          # { docker: linux/ppc64le, guix: powerpc64le-linux }
+          { docker: linux/amd64, guix: x86_64-linux, skip_pull: true },
+          { docker: linux/386, guix: i686-linux, skip_pull: true },
+          { docker: linux/arm/v7, guix: armhf-linux, skip_pull: true },
+          { docker: linux/arm64/v8, guix: aarch64-linux, skip_pull: true },
+          { docker: linux/ppc64le, guix: powerpc64le-linux, skip_pull: true }
+          # RISC-V 64: No official binaries available yet
+          # { docker: linux/riscv64, guix: riscv64-linux, skip_pull: true }
         ]
 
     steps:
@@ -61,6 +61,25 @@ jobs:
       - name: Create a new builder instance
         run: docker buildx create --use --name insecure-builder --buildkitd-flags '--allow-insecure-entitlement security.insecure'
 
+      - name: Fetch Guix binary URL from ci.guix.gnu.org
+        id: fetch_binary
+        run: |
+          SEARCH_URL="https://ci.guix.gnu.org/search/latest?query=spec:tarball+status:success+system:${{ matrix.platform.guix }}+guix-binary.tar.xz"
+          echo "Fetching binary URL for ${{ matrix.platform.guix }}"
+          
+          BINARY_URL=$(curl -sIL "$SEARCH_URL" \
+            | awk '/^location:/ {print $2}' \
+            | tail -n1 \
+            | tr -d '\r')
+          
+          if [ -z "$BINARY_URL" ]; then
+            echo "Warning: Could not fetch binary URL from ci.guix.gnu.org, will use GNU mirrors"
+            echo "binary_url=" >> $GITHUB_OUTPUT
+          else
+            echo "Found binary URL: $BINARY_URL"
+            echo "binary_url=$BINARY_URL" >> $GITHUB_OUTPUT
+          fi
+
       - name: Authenticate to Docker registry
         if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
@@ -68,30 +87,41 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Build and push by digest
-        id: build
+      - name: Build for testing
+        id: build_test
         uses: docker/build-push-action@v6
         with:
           platforms: ${{ matrix.platform.docker }}
-          labels: ${{ steps.meta.outputs.labels }}
-          outputs: type=image,name=docker.io/${{ env.REGISTRY_IMAGE }},push-by-digest=${{ github.event_name != 'pull_request' }},name-canonical=true,push=${{ github.event_name != 'pull_request' }}
-          load: ${{ github.event_name == 'pull_request' }}
-          tags: ${{ env.REGISTRY_IMAGE }}
+          tags: ${{ env.REGISTRY_IMAGE }}:test
+          load: true
           allow: security.insecure
           build-args: |
             METACALL_GUIX_VERSION=${{ env.GUIX_VERSION }}
             METACALL_GUIX_ARCH=${{ matrix.platform.guix }}
+            GUIX_BINARY_URL=${{ steps.fetch_binary.outputs.binary_url }}
+            SKIP_GUIX_PULL=${{ matrix.platform.skip_pull }}
           cache-from: type=registry,ref=docker.io/${{ env.REGISTRY_IMAGE }}
 
-      - name: Test (local)
-        if: ${{ github.event_name == 'pull_request' }}
+      - name: Test
         run: |
-          docker run --rm --pull=false -v $(pwd)/test/:/root/test/ ${{ env.REGISTRY_IMAGE }} bash /root/test/test.sh
+          docker run --rm --privileged -v $(pwd)/test/:/root/test/ ${{ env.REGISTRY_IMAGE }}:test /root/test/test.sh
 
-      - name: Test (remote)
-        if: ${{ github.event_name != 'pull_request' }}
-        run: |
-          docker run --rm -v $(pwd)/test/:/root/test/ docker.io/${{ env.REGISTRY_IMAGE }}@${{ steps.build.outputs.digest }} bash /root/test/test.sh
+      - name: Build and push by digest
+        id: build
+        if: github.event_name != 'pull_request'
+        uses: docker/build-push-action@v6
+        with:
+          platforms: ${{ matrix.platform.docker }}
+          labels: ${{ steps.meta.outputs.labels }}
+          outputs: type=image,name=docker.io/${{ env.REGISTRY_IMAGE }},push-by-digest=true,name-canonical=true,push=true
+          allow: security.insecure
+          build-args: |
+            METACALL_GUIX_VERSION=${{ env.GUIX_VERSION }}
+            METACALL_GUIX_ARCH=${{ matrix.platform.guix }}
+            GUIX_BINARY_URL=${{ steps.fetch_binary.outputs.binary_url }}
+            SKIP_GUIX_PULL=${{ matrix.platform.skip_pull }}
+          cache-from: type=registry,ref=docker.io/${{ env.REGISTRY_IMAGE }}
+          cache-to: type=inline
 
       - name: Export digest
         if: github.event_name != 'pull_request'
