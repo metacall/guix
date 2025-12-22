@@ -31,8 +31,9 @@ jobs:
           { docker: linux/386, guix: i686-linux, skip_pull: true },
           { docker: linux/arm/v7, guix: armhf-linux, skip_pull: true },
           { docker: linux/arm64/v8, guix: aarch64-linux, skip_pull: true },
-          { docker: linux/ppc64le, guix: powerpc64le-linux, skip_pull: true },
-          { docker: linux/riscv64, guix: riscv64-linux, skip_pull: true }
+          { docker: linux/ppc64le, guix: powerpc64le-linux, skip_pull: true }
+          # RISC-V 64: No official binaries available yet
+          # { docker: linux/riscv64, guix: riscv64-linux, skip_pull: true }
         ]
 
     steps:
