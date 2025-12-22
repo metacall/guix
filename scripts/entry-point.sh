@@ -91,6 +91,10 @@ case ${ARCH} in
     # PowerPC64 LE also needs --disable-chroot under QEMU emulation
 	echo "PowerPC64 LE detected, adding --disable-chroot flag"
 	GUIX_DAEMON_EXTRA_ARGS="--disable-chroot";;
+    riscv64)
+    # RISC-V 64 also needs --disable-chroot under QEMU emulation
+	echo "RISC-V 64 detected, adding --disable-chroot flag"
+	GUIX_DAEMON_EXTRA_ARGS="--disable-chroot";;
 esac
 
 # Run guix daemon

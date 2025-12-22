@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - master
+      - powerpc
     tags:
       - 'v*.*.*'
 
@@ -13,7 +14,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  REGISTRY_IMAGE: metacall/guix
+  REGISTRY_IMAGE: mryash/guix
   GUIX_VERSION: 1.4.0
   BUILDKIT_VERSION: 0.13.0
 
@@ -30,7 +31,8 @@ jobs:
           { docker: linux/386, guix: i686-linux, skip_pull: true },
           { docker: linux/arm/v7, guix: armhf-linux, skip_pull: true },
           { docker: linux/arm64/v8, guix: aarch64-linux, skip_pull: true },
-          { docker: linux/ppc64le, guix: powerpc64le-linux, skip_pull: true }
+          { docker: linux/ppc64le, guix: powerpc64le-linux, skip_pull: true },
+          { docker: linux/riscv64, guix: riscv64-linux, skip_pull: true }
         ]
 
     steps:
