@@ -14,7 +14,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  REGISTRY_IMAGE: metacall/guix
+  REGISTRY_IMAGE: mryash/guix
   GUIX_VERSION: 1.4.0
   BUILDKIT_VERSION: 0.13.0
 
