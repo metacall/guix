@@ -29,13 +29,13 @@ SUBSTITUTE_URLS=""
 
 # Function to add substitute URLs
 function substitute_urls() {
-    local input
+	local input
 
-    # Read all input, replace newlines with spaces and trim leading/trailing whitespace
-    input=$(cat | tr '\n' ' ' | xargs)
+	# Read all input, replace newlines with spaces and trim leading/trailing whitespace
+	input=$(cat | tr '\n' ' ' | xargs)
 
-    # Append to global variable
-    SUBSTITUTE_URLS="${SUBSTITUTE_URLS} ${input}"
+	# Append to global variable
+	SUBSTITUTE_URLS="${SUBSTITUTE_URLS} ${input}"
 }
 
 # Official build farms
@@ -78,8 +78,16 @@ EOF
 ARCH=$(uname -m)
 GUIX_DAEMON_EXTRA_ARGS=""
 case ${ARCH} in
-    armv7l)
-    # guix error: cloning builder process: Invalid argument (https://lists.gnu.org/archive/html/help-guix/2017-12/msg00023.html)
+	armv7l|armv7*|arm|armhf)
+	# guix error: cloning builder process: Invalid argument (https://lists.gnu.org/archive/html/help-guix/2017-12/msg00023.html)
+	GUIX_DAEMON_EXTRA_ARGS="--disable-chroot";;
+
+	aarch64|arm64)
+	# ARM64 also needs --disable-chroot under QEMU emulation
+	GUIX_DAEMON_EXTRA_ARGS="--disable-chroot";;
+
+	ppc64le|powerpc64le)
+	# PowerPC64 LE also needs --disable-chroot under QEMU emulation
 	GUIX_DAEMON_EXTRA_ARGS="--disable-chroot";;
 esac
 

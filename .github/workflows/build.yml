@@ -14,8 +14,8 @@ concurrency:
 
 env:
   REGISTRY_IMAGE: metacall/guix
-  GUIX_VERSION: 1.4.0
-  BUILDKIT_VERSION: 0.13.0
+  GUIX_VERSION: 1.5.0rc1
+  BUILDKIT_VERSION: 0.30.0
 
 jobs:
   build:
@@ -28,10 +28,8 @@ jobs:
           { docker: linux/amd64, guix: x86_64-linux },
           { docker: linux/386, guix: i686-linux },
           { docker: linux/arm/v7, guix: armhf-linux },
-
-          # ERROR: failed to solve: ResourceExhausted: process "/bin/sh -c sh -c '/entry-point.sh guix pull ..." did not complete successfully: cannot allocate memory
-          # { docker: linux/arm64/v8, guix: aarch64-linux },
-          # { docker: linux/ppc64le, guix: powerpc64le-linux }
+          { docker: linux/arm64/v8, guix: aarch64-linux },
+          { docker: linux/ppc64le, guix: powerpc64le-linux }
         ]
 
     steps:
