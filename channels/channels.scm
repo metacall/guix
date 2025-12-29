@@ -21,10 +21,10 @@
         (name 'guix)
         (url "https://codeberg.org/guix/guix.git")
         (branch "master")
-        (commit "f0d4daa13f0b57f5c03af73d449b2c6dd3160d08") ; Mon Feb 17 14:29:21 2025 +0100
+        (commit "2d4ed08662714ea46cfe0b41ca195d1ef845fd1b") ; Tue Dec 16 12:26:57 2025 +0100
         (introduction
             (make-channel-introduction
-                "f0d4daa13f0b57f5c03af73d449b2c6dd3160d08" ; Tue May 26 22:30:51 2020 +0200
+                "2d4ed08662714ea46cfe0b41ca195d1ef845fd1b" ; Tue 23 Dec 2025 10:16:06 AM EET
             (openpgp-fingerprint
-                "BCA6 89B6 3655 3801 C3C6  2150 197A 5888 235F ACAC")))) ; git verify-commit <commit-hash>
+                "6B51 071A 0FB1 52AD ED93  6360 0322 7982 69E4 71C3")))) ; git verify-commit <commit-hash>
 )
