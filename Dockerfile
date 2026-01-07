@@ -4,7 +4,7 @@
 #	MetaCall Guix by Parra Studios
 #	Docker image for using Guix in a CI/CD environment.
 #
-#	Copyright (C) 2016 - 2025 Vicente Eduardo Ferrer Garcia <vic798@gmail.com>
+#	Copyright (C) 2016 - 2026 Vicente Eduardo Ferrer Garcia <vic798@gmail.com>
 #
 #	Licensed under the Apache License, Version 2.0 (the "License");
 #	you may not use this file except in compliance with the License.
@@ -24,6 +24,8 @@
 #	1) Investigate what to do with channels.scm:
 #	&& cp /guix/channels.scm /root/.config/guix/ ?
 #   Should we overwrite or append the existing one?
+#	Also it seems the build is not recognizing it
+#	2) Implement debian + alpine
 
 FROM debian:trixie-slim AS download
 
@@ -67,6 +69,7 @@ RUN --mount=type=bind,from=download,source=/guix,target=/guix \
 	&& export GUIX_BINARY_FILE_NAME=/guix/guix-binary.${METACALL_GUIX_ARCH}.tar.xz \
 	&& yes '' | sh /guix/install.sh \
 	&& chmod +x /etc/profile.d/zzz-guix.sh \
+	&& cp /guix/channels.scm /root/.config/guix/channels.scm \
 	&& /root/.config/guix/current/bin/guix-daemon --version
 
 # TODO: Move this to the end and try to remove ca-certificates too (once nss-certs have been installed)
