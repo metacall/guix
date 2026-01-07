@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1
+# syntax=docker/dockerfile:1.3-labs
 
 #
 #	MetaCall Guix by Parra Studios
@@ -21,8 +21,8 @@
 
 
 # TODO:
-#	1) Investigate what to do with channels.scm
-#	&& cp /guix/channels.scm /root/.config/guix/
+#	1) Investigate what to do with channels.scm:
+#	&& cp /guix/channels.scm /root/.config/guix/ ?
 #   Should we overwrite or append the existing one?
 
 FROM debian:trixie-slim AS download
@@ -101,7 +101,6 @@ ENV GUIX_PROFILE="/root/.config/guix/current" \
 	CURL_CA_BUNDLE="/root/.config/guix/current/etc/ssl/certs/ca-certificates.crt"
 
 # Run pull (https://github.com/docker/buildx/blob/master/README.md#--allowentitlement)
-# Restart with latest version of the daemon and garbage collect
 RUN --security=insecure \
 	sh -c '/entry-point.sh guix pull --fallback' \
 	&& sh -c '/entry-point.sh guix package --fallback -i nss-certs' \
