@@ -1,10 +1,10 @@
-#!/bin/bash
+#!/bin/sh
 
 #
 #	MetaCall Guix by Parra Studios
 #	Docker image for using Guix in a CI/CD environment.
 #
-#	Copyright (C) 2016 - 2025 Vicente Eduardo Ferrer Garcia <vic798@gmail.com>
+#	Copyright (C) 2016 - 2026 Vicente Eduardo Ferrer Garcia <vic798@gmail.com>
 #
 #	Licensed under the Apache License, Version 2.0 (the "License");
 #	you may not use this file except in compliance with the License.
@@ -19,10 +19,20 @@
 #	limitations under the License.
 #
 
+# Check if we are already in bash or zsh
+if [ -z "$BASH_VERSION" ] && [ -z "$ZSH_VERSION" ]; then
+	# Try to find bash, then fallback to zsh
+	EXEC_SHELL=$(command -v bash || command -v zsh)
+	exec "$EXEC_SHELL" "$0" "$@"
+fi
+
 set -exuo pipefail
 
 # Load profile enviroment variables
-source ${GUIX_PROFILE}/etc/profile
+export INFOPATH="/usr/share/info"
+export MANPATH="/usr/share/man"
+. /etc/profile.d/zzz-guix.sh
+export GUIX_PROFILE="/root/.config/guix/current"
 
 # Substitute servers global variable
 SUBSTITUTE_URLS=""
@@ -53,6 +63,11 @@ https://bordeaux-guix.jing.rocks
 https://mirror.yandex.ru/mirrors/guix/
 https://berlin-guix.jing.rocks
 https://bordeaux-singapore-mirror.cbaines.net
+EOF
+
+# Nonguix substitutes
+substitute_urls <<EOF
+https://substitutes.nonguix.org
 EOF
 
 # Unofficial mirrors removed because of slow connection problems:
@@ -92,8 +107,21 @@ case ${ARCH} in
 esac
 
 # Run guix daemon
-${GUIX_PROFILE}/bin/guix-daemon ${GUIX_DAEMON_EXTRA_ARGS} --build-users-group=guix-builder --substitute-urls="${SUBSTITUTE_URLS}" &
+${GUIX_PROFILE}/bin/guix-daemon --build-users-group=guixbuild --substitute-urls="${SUBSTITUTE_URLS}" --max-jobs=$(nproc) &
 GUIX_DAEMON=$!
 
 # Execute commands
-exec "$@"
+"$@"
+GUIX_RESULT=$?
+
+# Print logs in case of error
+if [ ${GUIX_RESULT} -ne 0 ]; then
+	cp -v /var/log/guix/drvs/*/*.drv.gz .
+	gzip -d *.gz
+	tail -v -n1000 *.drv
+fi
+
+# Kill guix daemon
+kill -9 $GUIX_DAEMON
+
+exit ${GUIX_RESULT}

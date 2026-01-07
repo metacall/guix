@@ -14,7 +14,6 @@ concurrency:
 
 env:
   REGISTRY_IMAGE: metacall/guix
-  GUIX_VERSION: 1.5.0rc1
   BUILDKIT_VERSION: 0.30.0
 
 jobs:
@@ -29,7 +28,8 @@ jobs:
           { docker: linux/386, guix: i686-linux },
           { docker: linux/arm/v7, guix: armhf-linux },
           { docker: linux/arm64/v8, guix: aarch64-linux },
-          { docker: linux/ppc64le, guix: powerpc64le-linux }
+          { docker: linux/ppc64le, guix: powerpc64le-linux },
+          { docker: linux/riscv64, guix: riscv64-linux }
         ]
 
     steps:
@@ -76,7 +76,6 @@ jobs:
           tags: ${{ env.REGISTRY_IMAGE }}
           allow: security.insecure
           build-args: |
-            METACALL_GUIX_VERSION=${{ env.GUIX_VERSION }}
             METACALL_GUIX_ARCH=${{ matrix.platform.guix }}
           cache-from: type=registry,ref=docker.io/${{ env.REGISTRY_IMAGE }}
 

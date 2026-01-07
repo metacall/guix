@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 #
 #	MetaCall Guix by Parra Studios
@@ -19,25 +19,7 @@
 #	limitations under the License.
 #
 
-set -exuo pipefail
-
-# Verify if the certificates exist
-if [[ ! -e /root/.guix-profile/etc/ssl/certs/ca-certificates.crt ]]; then
-	echo "ERROR: Certificates do not exist"
-	exit 1
-fi
-
-# Verify if version is correct (it is fixed to the channels.scm)
-CHANNELS_COMMIT=$(cat /root/.config/guix/channels.scm | grep commit | head -n 1 | cut -d'"' -f 2)
-GUIX_VERSION=$(guix --version | head -n 1 | awk '{print $NF}')
-
-if [[ "${CHANNELS_COMMIT}" != "${GUIX_VERSION}" ]]; then
-	echo "ERROR: Guix version does not match with channels.scm"
-	exit 1
-fi
-
-# List installed packages
-if ! guix package --list-installed > /dev/null 2>&1; then
-	echo "ERROR: Guix package command failed"
-	exit 1
-fi
+guix pull --fallback
+guix package --fallback -i nss-certs
+guix gc
+guix gc --optimize

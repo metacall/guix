@@ -1,7 +1,7 @@
 ;	MetaCall Guix by Parra Studios
 ;	Docker image for using Guix in a CI/CD environment.
 ;
-;	Copyright (C) 2016 - 2025 Vicente Eduardo Ferrer Garcia <vic798@gmail.com>
+;	Copyright (C) 2016 - 2026 Vicente Eduardo Ferrer Garcia <vic798@gmail.com>
 ;
 ;	Licensed under the Apache License, Version 2.0 (the "License");
 ;	you may not use this file except in compliance with the License.
@@ -16,15 +16,18 @@
 ;	limitations under the License.
 ;
 
+; TODO: Download latest channel.scm:
+; https://ci.guix.gnu.org/eval/latest/channels.scm?spec=guix
+
 (list
     (channel
         (name 'guix)
         (url "https://codeberg.org/guix/guix.git")
         (branch "master")
-        (commit "2d4ed08662714ea46cfe0b41ca195d1ef845fd1b") ; Tue Dec 16 12:26:57 2025 +0100
+        (commit "6913fd701884fad3af579efdc298ae444aeaf57c") ; Tue Jan 6 08:59:57 2026 -0500
         (introduction
             (make-channel-introduction
-                "2d4ed08662714ea46cfe0b41ca195d1ef845fd1b" ; Tue 23 Dec 2025 10:16:06 AM EET
+                "9edb3f66fd807b096b48283debdcddccfea34bad"
             (openpgp-fingerprint
-                "6B51 071A 0FB1 52AD ED93  6360 0322 7982 69E4 71C3")))) ; git verify-commit <commit-hash>
+                "BBB0 2DDF 2CEA F6A8 0D1D  E643 A2A0 6DF2 A33A 54FA"))))
 )

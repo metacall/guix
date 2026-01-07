@@ -1,4 +1,4 @@
-# syntax = docker/dockerfile:1.1-experimental
+# syntax=docker/dockerfile:1
 
 #
 #	MetaCall Guix by Parra Studios
@@ -19,16 +19,30 @@
 #	limitations under the License.
 #
 
+
+# TODO:
+#	1) Investigate what to do with channels.scm
+#	&& cp /guix/channels.scm /root/.config/guix/
+#   Should we overwrite or append the existing one?
+
 FROM debian:trixie-slim AS download
 
 RUN apt-get update \
-	&& apt-get install -y --no-install-recommends xz-utils wget ca-certificates
+	&& apt-get install -y --no-install-recommends jq xz-utils wget ca-certificates
 
-ARG METACALL_GUIX_VERSION
 ARG METACALL_GUIX_ARCH
 
-# Download and unpack Guix binary distribution
-RUN wget -O - https://ftpmirror.gnu.org/gnu/guix/guix-binary-${METACALL_GUIX_VERSION}.${METACALL_GUIX_ARCH}.tar.xz | tar -xJv -C /
+# Download Guix binary distribution
+RUN set -exuo pipefail \
+	&& mkdir -p /guix \
+	&& export LATEST_RELEASE=$(wget --spider --server-response https://github.com/metacall/guix-binary/releases/latest 2>&1 | grep -i "Location:" | tail -n 1 | awk '{print $2}' | sed 's/tag/download/') \
+	&& export METADATA=$(wget -qO- "${LATEST_RELEASE}/build.json" | jq -r ".\"${METACALL_GUIX_ARCH}\"") \
+	&& export DOWNLOAD_URL=$(echo "${METADATA}" | jq -r '.url') \
+	&& export EXPECTED_SHA=$(echo "${METADATA}" | jq -r '.sha256') \
+	&& wget -O /guix/guix-binary.${METACALL_GUIX_ARCH}.tar.xz "${DOWNLOAD_URL}" \
+	&& if ! echo "${EXPECTED_SHA}  /guix/guix-binary.${METACALL_GUIX_ARCH}.tar.xz" | sha256sum -c - > /dev/null 2>&1; then echo echo "ERROR: Checksum verification failed!" && exit 1; fi \
+	&& wget -O /guix/channels.scm "${LATEST_RELEASE}/channels.scm" \
+	&& wget -O /guix/install.sh "${LATEST_RELEASE}/install.sh"
 
 FROM debian:trixie-slim AS guix
 
@@ -40,32 +54,32 @@ LABEL copyright.name="Vicente Eduardo Ferrer Garcia" \
 	vendor="MetaCall Inc." \
 	version="0.1"
 
-# Copy binary distribution
-COPY --from=download /gnu/store /gnu/store
-COPY --from=download /var/guix /var/guix
+# Install dependencies
+RUN export DEBIAN_FRONTEND=noninteractive \
+	&& apt-get update \
+	&& apt-get install -y --no-install-recommends netbase ca-certificates xz-utils wget gnupg
+
+ARG METACALL_GUIX_ARCH
+
+# Install Guix and copy latest channel
+RUN --mount=type=bind,from=download,source=/guix,target=/guix \
+	set -exu \
+	&& export GUIX_BINARY_FILE_NAME=/guix/guix-binary.${METACALL_GUIX_ARCH}.tar.xz \
+	&& yes '' | sh /guix/install.sh \
+	&& chmod +x /etc/profile.d/zzz-guix.sh \
+	&& /root/.config/guix/current/bin/guix-daemon --version
+
+# TODO: Move this to the end and try to remove ca-certificates too (once nss-certs have been installed)
+RUN set -exuo pipefail \
+	&& export APT_GNUPG= \
+	&& grep -q Trisquel /etc/os-release || APT_GNUPG=gnupg \
+	&& export DEBIAN_FRONTEND=noninteractive \
+	&& apt-get remove --purge -y xz-utils wget $APT_GNUPG \
+	&& apt-get autoremove --purge -y \
+	&& rm -rfv /var/cache/apt/* /var/lib/apt/lists/*
 
 # Copy entry point
-COPY scripts/entry-point.sh /entry-point.sh
-
-# Install Guix
-RUN set -exuo pipefail \
-	&& groupadd --system guix-builder \
-	&& chgrp guix-builder -R /gnu/store \
-	&& chmod 0755 /gnu/store \
-	&& for i in `seq -w 0 9`; do \
-			useradd -g guix-builder -G guix-builder \
-				-d /var/empty -s $(which nologin) \
-				-c "Guix build user #${i}" --system guix-builder-${i}; \
-		done \
-	&& mkdir -p /root/.config/guix \
-	&& ln -sf /var/guix/profiles/per-user/root/current-guix /root/.config/guix/ \
-	&& mkdir -p /usr/local/bin \
-	&& ln -s /var/guix/profiles/per-user/root/current-guix/bin/guix /usr/local/bin/ \
-	&& mkdir -p /usr/local/share/info \
-	&& for i in /var/guix/profiles/per-user/root/current-guix/share/info/*; do \
-			ln -s ${i} /usr/local/share/info/; \
-		done \
-	&& chmod +x /entry-point.sh
+COPY --chmod=0755 scripts/entry-point.sh /entry-point.sh
 
 # Copy substitute servers
 COPY substitutes/ /var/guix/profiles/per-user/root/current-guix/share/guix/
@@ -73,28 +87,26 @@ COPY substitutes/ /var/guix/profiles/per-user/root/current-guix/share/guix/
 # Apply substitutes
 RUN . /var/guix/profiles/per-user/root/current-guix/etc/profile \
 	&& for file in /var/guix/profiles/per-user/root/current-guix/share/guix/*.pub; do \
-			guix archive --authorize < ${file}; \
-		done
+		guix archive --authorize < ${file}; \
+	done
 
-ENV GUIX_PROFILE="/root/.config/guix/current-guix" \
-	GUIX_LOCPATH="/root/.guix-profile/lib/locale" \
-	LANG="en_US.UTF-8" \
-	SSL_CERT_DIR="/root/.guix-profile/etc/ssl/certs" \
-	SSL_CERT_FILE="/root/.guix-profile/etc/ssl/certs/ca-certificates.crt" \
-	GIT_SSL_FILE="/root/.guix-profile/etc/ssl/certs/ca-certificates.crt" \
-	GIT_SSL_CAINFO="/root/.guix-profile/etc/ssl/certs/ca-certificates.crt" \
-	CURL_CA_BUNDLE="/root/.guix-profile/etc/ssl/certs/ca-certificates.crt"
-
-# Copy additional channels
-COPY channels/ /root/.config/guix/
-
-# Copy services
-COPY scripts/etc/services /etc/services
+# Environment variables
+ENV GUIX_PROFILE="/root/.config/guix/current" \
+	GUIX_LOCPATH="/root/.config/guix/current/share/locale" \
+	LC_ALL="C.utf8" \
+	SSL_CERT_DIR="/root/.config/guix/current/etc/ssl/certs" \
+	SSL_CERT_FILE="/root/.config/guix/current/etc/ssl/certs/ca-certificates.crt" \
+	GIT_SSL_FILE="/root/.config/guix/current/etc/ssl/certs/ca-certificates.crt" \
+	GIT_SSL_CAINFO="/root/.config/guix/current/etc/ssl/certs/ca-certificates.crt" \
+	CURL_CA_BUNDLE="/root/.config/guix/current/etc/ssl/certs/ca-certificates.crt"
 
 # Run pull (https://github.com/docker/buildx/blob/master/README.md#--allowentitlement)
 # Restart with latest version of the daemon and garbage collect
-RUN --security=insecure sh -c '/entry-point.sh guix pull --fallback && guix package --fallback -i nss-certs' \
-	&& sh -c '/entry-point.sh guix gc && guix gc --optimize'
+RUN --security=insecure \
+	sh -c '/entry-point.sh guix pull --fallback' \
+	&& sh -c '/entry-point.sh guix package --fallback -i nss-certs' \
+	&& sh -c '/entry-point.sh guix gc' \
+	&& sh -c '/entry-point.sh guix gc --optimize'
 
 ENTRYPOINT ["/entry-point.sh"]
 CMD ["sh"]
