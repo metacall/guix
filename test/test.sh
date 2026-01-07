@@ -28,6 +28,10 @@ fi
 
 set -exuo pipefail
 
+# Get directories of the current script
+SCRIPT_PATH=$(readlink -f "$0")
+SCRIPT_DIR=$(dirname "$SCRIPT_PATH")
+
 # Verify if the certificates exist
 if [[ ! -e /root/.guix-profile/etc/ssl/certs/ca-certificates.crt ]]; then
 	echo "ERROR: Certificates do not exist"
@@ -35,7 +39,7 @@ if [[ ! -e /root/.guix-profile/etc/ssl/certs/ca-certificates.crt ]]; then
 fi
 
 # Verify if version is correct (it is fixed to the channels.scm)
-CHANNELS_CHECK="$(pwd)/channels-check.scm"
+CHANNELS_CHECK="${SCRIPT_DIR}/channels-check.scm"
 CHANNELS_COMMIT=$(guix repl "${CHANNELS_CHECK}")
 GUIX_VERSION=$(guix --version | head -n 1 | awk '{print $NF}')
 
