@@ -19,13 +19,9 @@
 #	limitations under the License.
 #
 
-
 # TODO:
-#	1) Investigate what to do with channels.scm:
-#	&& cp /guix/channels.scm /root/.config/guix/ ?
-#   Should we overwrite or append the existing one?
-#	Also it seems the build is not recognizing it
-#	2) Implement debian + alpine
+#	1) Implement debian + alpine
+#	2) Review if the pull must be moved outside or not
 
 FROM debian:trixie-slim AS download
 

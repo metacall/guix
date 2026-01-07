@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 #
 #	MetaCall Guix by Parra Studios
@@ -19,6 +19,13 @@
 #	limitations under the License.
 #
 
+# Check if we are already in bash or zsh
+if [ -z "$BASH_VERSION" ] && [ -z "$ZSH_VERSION" ]; then
+	# Try to find bash, then fallback to zsh
+	EXEC_SHELL=$(command -v bash || command -v zsh)
+	exec "$EXEC_SHELL" "$0" "$@"
+fi
+
 set -exuo pipefail
 
 # Verify if the certificates exist
@@ -28,7 +35,7 @@ if [[ ! -e /root/.guix-profile/etc/ssl/certs/ca-certificates.crt ]]; then
 fi
 
 # Verify if version is correct (it is fixed to the channels.scm)
-CHANNELS_COMMIT=$(cat /root/.config/guix/channels.scm | grep commit | head -n 1 | cut -d'"' -f 2)
+CHANNELS_COMMIT=$(guix repl ./channel-check.scm)
 GUIX_VERSION=$(guix --version | head -n 1 | awk '{print $NF}')
 
 if [[ "${CHANNELS_COMMIT}" != "${GUIX_VERSION}" ]]; then
@@ -36,8 +43,14 @@ if [[ "${CHANNELS_COMMIT}" != "${GUIX_VERSION}" ]]; then
 	exit 1
 fi
 
+# Install a package for testing
+if ! guix install hello; then
+	echo "ERROR: Guix install command failed"
+	exit 1
+fi
+
 # List installed packages
-if ! guix package --list-installed > /dev/null 2>&1; then
+if ! guix package --list-installed; then
 	echo "ERROR: Guix package command failed"
 	exit 1
 fi

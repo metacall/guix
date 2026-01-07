@@ -104,10 +104,14 @@ case ${ARCH} in
 	ppc64le|powerpc64le)
 	# PowerPC64 LE also needs --disable-chroot under QEMU emulation
 	GUIX_DAEMON_EXTRA_ARGS="--disable-chroot";;
+
+	riscv64)
+	# RISC-V also needs --disable-chroot under QEMU emulation
+	GUIX_DAEMON_EXTRA_ARGS="--disable-chroot";;
 esac
 
 # Run guix daemon
-${GUIX_PROFILE}/bin/guix-daemon --build-users-group=guixbuild --substitute-urls="${SUBSTITUTE_URLS}" --max-jobs=$(nproc) &
+${GUIX_PROFILE}/bin/guix-daemon ${GUIX_DAEMON_EXTRA_ARGS} --build-users-group=guixbuild --substitute-urls="${SUBSTITUTE_URLS}" --max-jobs=$(nproc) &
 GUIX_DAEMON=$!
 
 # Execute commands
