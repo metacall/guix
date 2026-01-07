@@ -35,7 +35,8 @@ if [[ ! -e /root/.guix-profile/etc/ssl/certs/ca-certificates.crt ]]; then
 fi
 
 # Verify if version is correct (it is fixed to the channels.scm)
-CHANNELS_COMMIT=$(guix repl ./channel-check.scm)
+CHANNELS_CHECK="$(pwd)/channels-check.scm"
+CHANNELS_COMMIT=$(guix repl "${CHANNELS_CHECK}")
 GUIX_VERSION=$(guix --version | head -n 1 | awk '{print $NF}')
 
 if [[ "${CHANNELS_COMMIT}" != "${GUIX_VERSION}" ]]; then
