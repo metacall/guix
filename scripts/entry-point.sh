@@ -114,7 +114,8 @@ esac
 ${GUIX_PROFILE}/bin/guix-daemon ${GUIX_DAEMON_EXTRA_ARGS} --build-users-group=guixbuild --substitute-urls="${SUBSTITUTE_URLS}" --max-jobs=$(nproc) &
 GUIX_DAEMON=$!
 
-# Execute commands
+# Execute commands (avoid exit on error so we can print the logs in case of fail)
+set +e
 "$@"
 GUIX_RESULT=$?
 
