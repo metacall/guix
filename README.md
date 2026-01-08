@@ -158,7 +158,7 @@ docker buildx build --load -t metacall/guix --platform linux/386 --allow securit
 
 ## Adding substitute servers
 
-Add all your substitutes public keys in the [substitutes](./substitutes) folder, they must end with .pub extension
+Add all your substitutes public keys in the [substitutes](./substitutes) folder, they must end with `.pub` extension.
 Later on add the URL of your substitute server in `SUBSTITUTE_URLS` list on [scripts/entry-point.sh](./scripts/entry-point.sh).
 
 ## Troubleshooting
@@ -186,6 +186,18 @@ docker run --privileged --platform linux/arm/v7 -it \
 	--mount type=tmpfs,target=/root/.cache/guix \
 	metacall/guix guix pull
 ```
+
+If you want to keep the cache of the `guix pull` command (normally stored in `XDG_CACHE_HOME` environment variable, by default set to `$HOME/.cache`), you can use this method:
+
+```docker
+RUN --security=insecure --mount=type=tmpfs,target=/tmp/.cache \
+	&& mkdir -p /tmp/.cache /root/.cache \
+	&& export XDG_CACHE_HOME=/tmp/.cache \
+	&& sh -c '/entry-point.sh guix pull' \
+	&& cp -a /tmp/.cache/. /root/.cache/
+```
+
+This will store the cache in the default folder, speeding up next pulls.
 
 ### Granting entitlement
 
