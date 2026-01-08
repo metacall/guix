@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.3-labs
+# syntax=docker/dockerfile:1.4-labs
 
 #
 #	MetaCall Guix by Parra Studios
@@ -21,7 +21,6 @@
 
 # TODO:
 #	1) Implement debian + alpine
-#	2) Review if the pull must be moved outside or not
 
 FROM debian:trixie-slim AS download
 
@@ -100,7 +99,7 @@ ENV GUIX_PROFILE="/root/.config/guix/current" \
 	CURL_CA_BUNDLE="/root/.config/guix/current/etc/ssl/certs/ca-certificates.crt"
 
 # Run pull (https://github.com/docker/buildx/blob/master/README.md#--allowentitlement)
-RUN --security=insecure \
+RUN --security=insecure --mount=type=tmpfs,target=/root/.cache/guix \
 	sh -c '/entry-point.sh guix pull --fallback' \
 	&& sh -c '/entry-point.sh guix package --fallback -i nss-certs' \
 	&& sh -c '/entry-point.sh guix gc' \
