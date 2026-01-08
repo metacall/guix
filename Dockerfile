@@ -99,11 +99,16 @@ ENV GUIX_PROFILE="/root/.config/guix/current" \
 	CURL_CA_BUNDLE="/root/.config/guix/current/etc/ssl/certs/ca-certificates.crt"
 
 # Run pull (https://github.com/docker/buildx/blob/master/README.md#--allowentitlement)
-RUN --security=insecure --mount=type=tmpfs,target=/root/.cache/guix \
-	sh -c '/entry-point.sh guix pull --fallback' \
+# Uses tmpfs in order to avoid issues with large files in 32-bit file system (armhf-linux)
+RUN --security=insecure --mount=type=tmpfs,target=/tmp/.cache \
+	set -exuo pipefail \
+	&& mkdir -p /tmp/.cache /root/.cache \
+	&& export XDG_CACHE_HOME=/tmp/.cache \
+	&& sh -c '/entry-point.sh guix pull --fallback' \
 	&& sh -c '/entry-point.sh guix package --fallback -i nss-certs' \
 	&& sh -c '/entry-point.sh guix gc' \
-	&& sh -c '/entry-point.sh guix gc --optimize'
+	&& sh -c '/entry-point.sh guix gc --optimize' \
+	&& cp -a /tmp/.cache/. /root/.cache/
 
 ENTRYPOINT ["/entry-point.sh"]
 CMD ["sh"]
