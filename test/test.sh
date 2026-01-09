@@ -19,10 +19,14 @@
 #	limitations under the License.
 #
 
-# Check if we are already in bash or zsh
-if [ -z "$BASH_VERSION" ] && [ -z "$ZSH_VERSION" ]; then
+# Check if we are already in bash or zsh or ash
+if [ -z "$BASH_VERSION" ] && [ -z "$ZSH_VERSION" ] && ! /bin/sh --help 2>&1 | grep -q "BusyBox"; then
 	# Try to find bash, then fallback to zsh
-	EXEC_SHELL=$(command -v bash || command -v zsh)
+	EXEC_SHELL=`command -v bash || command -v zsh`
+	if [ -z "$EXEC_SHELL" ]; then
+		echo "The script requires a modern shell to run"
+		exit 1
+	fi
 	exec "$EXEC_SHELL" "$0" "$@"
 fi
 
@@ -33,8 +37,21 @@ SCRIPT_PATH=$(readlink -f "$0")
 SCRIPT_DIR=$(dirname "$SCRIPT_PATH")
 
 # Verify if the certificates exist
-if [[ ! -e /root/.guix-profile/etc/ssl/certs/ca-certificates.crt ]]; then
+CERTIFICATES_DIR="/root/.guix-profile/etc/ssl/certs"
+CERTIFICATES_PATH="${CERTIFICATES_DIR}/ca-certificates.crt"
+if [[ ! -e "${CERTIFICATES_PATH}" ]]; then
 	echo "ERROR: Certificates do not exist"
+	exit 1
+fi
+
+# Verify if environment variables of certificates are set
+if [[ "${SSL_CERT_DIR}" != "${CERTIFICATES_DIR}"
+	|| "${SSL_CERT_FILE}" != "${CERTIFICATES_PATH}"
+	|| "${GIT_SSL_FILE}" != "${CERTIFICATES_PATH}"
+	|| "${GIT_SSL_CAINFO}" != "${CERTIFICATES_PATH}"
+	|| "${CURL_CA_BUNDLE}" != "${CERTIFICATES_PATH}" ]]; then
+
+	echo "ERROR: Environment variables of certificates are not defined properly"
 	exit 1
 fi
 

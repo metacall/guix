@@ -19,10 +19,14 @@
 #	limitations under the License.
 #
 
-# Check if we are already in bash or zsh
-if [ -z "$BASH_VERSION" ] && [ -z "$ZSH_VERSION" ]; then
+# Check if we are already in bash or zsh or ash
+if [ -z "$BASH_VERSION" ] && [ -z "$ZSH_VERSION" ] && ! /bin/sh --help 2>&1 | grep -q "BusyBox"; then
 	# Try to find bash, then fallback to zsh
-	EXEC_SHELL=$(command -v bash || command -v zsh)
+	EXEC_SHELL=`command -v bash || command -v zsh`
+	if [ -z "$EXEC_SHELL" ]; then
+		echo "The script requires a modern shell to run"
+		exit 1
+	fi
 	exec "$EXEC_SHELL" "$0" "$@"
 fi
 
