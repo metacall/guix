@@ -92,11 +92,11 @@ RUN . /var/guix/profiles/per-user/root/current-guix/etc/profile \
 ENV GUIX_PROFILE="/root/.config/guix/current" \
 	GUIX_LOCPATH="/root/.config/guix/current/share/locale" \
 	LC_ALL="C.utf8" \
-	SSL_CERT_DIR="/root/.config/guix/current/etc/ssl/certs" \
-	SSL_CERT_FILE="/root/.config/guix/current/etc/ssl/certs/ca-certificates.crt" \
-	GIT_SSL_FILE="/root/.config/guix/current/etc/ssl/certs/ca-certificates.crt" \
-	GIT_SSL_CAINFO="/root/.config/guix/current/etc/ssl/certs/ca-certificates.crt" \
-	CURL_CA_BUNDLE="/root/.config/guix/current/etc/ssl/certs/ca-certificates.crt"
+	SSL_CERT_DIR="/root/.guix-profile/etc/ssl/certs" \
+	SSL_CERT_FILE="/root/.guix-profile/etc/ssl/certs/ca-certificates.crt" \
+	GIT_SSL_FILE="/root/.guix-profile/etc/ssl/certs/ca-certificates.crt" \
+	GIT_SSL_CAINFO="/root/.guix-profile/etc/ssl/certs/ca-certificates.crt" \
+	CURL_CA_BUNDLE="/root/.guix-profile/etc/ssl/certs/ca-certificates.crt"
 
 # Run pull (https://github.com/docker/buildx/blob/master/README.md#--allowentitlement)
 # Uses tmpfs in order to avoid issues with large files in 32-bit file system (armhf-linux)

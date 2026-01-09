@@ -214,6 +214,21 @@ Run:
 docker buildx use insecure-builder
 ```
 
+### Running a docker image in another platform fails
+
+If you get the following error:
+
+```sh
+docker run --rm --privileged --platform linux/arm/v7 --entrypoint bash -it metacall/guix
+standard_init_linux.go:228: exec user process caused: exec format error
+```
+
+Run this first:
+
+```sh
+docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+```
+
 ## Use cases
 
 [`MetaCall Guix GCC Example`](https://github.com/metacall/guix-gcc-example): This repository demonstrates how to use MetaCall Guix Docker Image for building portable self contained packages, in this case GCC@2.95. The idea of this repository is to make a Proof of Concept for Blink Virtual Machine by using GCC and possibly try to do the same with MetaCall in the near future.
