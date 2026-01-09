@@ -3,8 +3,10 @@
 const { exec } = require('child_process');
 const path = require('path');
 const crypto = require('crypto');
-const fs = require('fs');
+const { createReadStream, createWriteStream } = require('fs');
 const { writeFile } = require('fs/promises');
+const { Readable, Transform } = require('stream');
+const { pipeline } = require('stream/promises');
 
 const runCommand = (cmd, context) => {
 	return new Promise((resolve) => {
@@ -35,7 +37,7 @@ const report = results => {
 const sha256 = (filePath, fn, context) => {
 	return new Promise((resolve, reject) => {
 		const hash = crypto.createHash('sha256');
-		const stream = fs.createReadStream(filePath);
+		const stream = createReadStream(filePath);
 
 		stream.on('error', err => reject(err));
 		stream.on('data', chunk => hash.update(chunk));
@@ -62,6 +64,50 @@ const fetchBuildJson = async downloadBaseUrl => {
 
 	return await metadataResponse.json();
 };
+
+const fetchFile = async (outputDir, url, fileName, transform) => {
+	const channelsPath = path.join(outputDir, fileName);
+
+	const response = await fetch(url);
+
+	if (!response.ok) {
+		throw new Error(`Failed to fetch ${fileName} from ${url}: ${response.status} ${response.statusText}`);
+	}
+
+	const streams = [
+		Readable.fromWeb(response.body),
+		transform,
+		createWriteStream(channelsPath)
+	].filter(Boolean);
+
+    await pipeline(...streams);
+};
+
+const fetchChannels = async (outputDir) => fetchFile(
+	outputDir,
+	'https://ci.guix.gnu.org/eval/latest/channels.scm?spec=guix',
+	'channels.scm',
+	new Transform({
+		transform: (chunk, encoding, callback) => {
+			// Replace the URL of the repository by Codeberg
+			// Codeberg is faster than Savanah and Guix
+			// will be migrated eventually into it
+			const content = chunk.toString().replaceAll(
+				'https://git.guix.gnu.org/guix.git',
+				'https://codeberg.org/guix/guix.git'
+			);
+
+			// Push the modified chunk back into the stream
+			callback(null, content);
+		}
+	})
+);
+
+const fetchInstall = async (outputDir) => fetchFile(
+	outputDir,
+	'https://guix.gnu.org/install.sh',
+	'install.sh'
+);
 
 const release = async () => {
 	const architectures = [
@@ -184,10 +230,17 @@ const release = async () => {
 	const buildPath = path.join(hostOutput, 'build.json');
 
 	await writeFile(buildPath, JSON.stringify(newJson, null, 2), 'utf8');
+
+	// Fetch the latest channels.scm replacing the URL
+	await fetchChannels(hostOutput);
+
+	// Fetch the latest install.sh
+	await fetchInstall(hostOutput);
 };
 
 
 // TODO: Replace build-refactor.json in the current release
 // TODO: Make cache optional in the download target of Dockerfile
+// TODO: Replace metacall/guix-binary by metacall/guix in Dockerfile
 
 release();
