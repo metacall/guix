@@ -19,9 +19,6 @@
 #	limitations under the License.
 #
 
-# TODO:
-#	1) Implement debian + alpine
-
 FROM debian:trixie-slim AS download
 
 RUN apt-get update \
@@ -32,12 +29,16 @@ ARG METACALL_GUIX_ARCH
 # Download Guix binary distribution
 RUN set -exuo pipefail \
 	&& mkdir -p /guix \
-	&& export LATEST_RELEASE=$(wget --spider --server-response https://github.com/metacall/guix-binary/releases/latest 2>&1 | grep -i "Location:" | tail -n 1 | awk '{print $2}' | sed 's/tag/download/') \
+	&& export LATEST_RELEASE=$(wget --spider --server-response https://github.com/metacall/guix/releases/latest 2>&1 | grep -i "Location:" | tail -n 1 | awk '{print $2}' | sed 's/tag/download/') \
 	&& export METADATA=$(wget -qO- "${LATEST_RELEASE}/build.json" | jq -r ".\"${METACALL_GUIX_ARCH}\"") \
-	&& export DOWNLOAD_URL=$(echo "${METADATA}" | jq -r '.url') \
-	&& export EXPECTED_SHA=$(echo "${METADATA}" | jq -r '.sha256') \
-	&& wget -O /guix/guix-binary.${METACALL_GUIX_ARCH}.tar.xz "${DOWNLOAD_URL}" \
-	&& if ! echo "${EXPECTED_SHA}  /guix/guix-binary.${METACALL_GUIX_ARCH}.tar.xz" | sha256sum -c - > /dev/null 2>&1; then echo echo "ERROR: Checksum verification failed!" && exit 1; fi \
+	&& export BINARY_DOWNLOAD_URL=$(echo "${METADATA}" | jq -r '.url') \
+	&& export BINARY_EXPECTED_SHA=$(echo "${METADATA}" | jq -r '.sha256') \
+	&& wget -O /guix/guix-binary.${METACALL_GUIX_ARCH}.tar.xz "${BINARY_DOWNLOAD_URL}" \
+	&& if ! echo "${BINARY_EXPECTED_SHA}  /guix/guix-binary.${METACALL_GUIX_ARCH}.tar.xz" | sha256sum -c - > /dev/null 2>&1; then echo echo "ERROR: Binary checksum verification failed!" && exit 1; fi \
+	&& export CACHE_DOWNLOAD_URL=$(echo "${METADATA}" | jq -r '.cache.url') \
+	&& export CACHE_EXPECTED_SHA=$(echo "${METADATA}" | jq -r '.cache.sha256') \
+	&& wget -O /guix/guix-cache.${METACALL_GUIX_ARCH}.tar.xz "${CACHE_DOWNLOAD_URL}" \
+	&& if ! echo "${CACHE_EXPECTED_SHA}  /guix/guix-cache.${METACALL_GUIX_ARCH}.tar.xz" | sha256sum -c - > /dev/null 2>&1; then echo echo "ERROR: Cache checksum verification failed!" && exit 1; fi \
 	&& wget -O /guix/channels.scm "${LATEST_RELEASE}/channels.scm" \
 	&& wget -O /guix/install.sh "${LATEST_RELEASE}/install.sh"
 
@@ -65,7 +66,9 @@ RUN --mount=type=bind,from=download,source=/guix,target=/guix \
 	&& yes '' | sh /guix/install.sh \
 	&& chmod +x /etc/profile.d/zzz-guix.sh \
 	&& cp /guix/channels.scm /root/.config/guix/channels.scm \
-	&& /root/.config/guix/current/bin/guix-daemon --version
+	&& /root/.config/guix/current/bin/guix-daemon --version \
+	&& [ -f /guix/guix-cache.${METACALL_GUIX_ARCH}.tar.xz ] \
+		&& tar -xJf /guix/guix-cache.${METACALL_GUIX_ARCH}.tar.xz -C /root/
 
 # TODO: Move this to the end and try to remove ca-certificates too (once nss-certs have been installed)
 RUN set -exuo pipefail \

@@ -46,7 +46,7 @@ const sha256 = (filePath, fn, context) => {
 };
 
 const latestRelease = async () => {
-	const latestResponse = await fetch('https://github.com/metacall/guix-binary/releases/latest', {
+	const latestResponse = await fetch('https://github.com/metacall/guix/releases/latest', {
 		method: 'HEAD',
 		redirect: 'follow'
 	});
@@ -237,10 +237,5 @@ const release = async () => {
 	// Fetch the latest install.sh
 	await fetchInstall(hostOutput);
 };
-
-
-// TODO: Replace build-refactor.json in the current release
-// TODO: Make cache optional in the download target of Dockerfile
-// TODO: Replace metacall/guix-binary by metacall/guix in Dockerfile
 
 release();
