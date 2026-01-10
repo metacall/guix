@@ -69,8 +69,12 @@ RUN --mount=type=bind,from=download,source=/guix,target=/guix \
 	&& chmod +x /etc/profile.d/zzz-guix.sh \
 	&& cp /guix/channels.scm /root/.config/guix/channels.scm \
 	&& /root/.config/guix/current/bin/guix-daemon --version \
-	&& [ -f /guix/guix-cache.${METACALL_GUIX_ARCH}.tar.xz ] \
-		&& tar -xJf /guix/guix-cache.${METACALL_GUIX_ARCH}.tar.xz -C /root/
+	&& if [ -f "/guix/guix-cache.${METACALL_GUIX_ARCH}.tar.xz" ]; then \
+			tar -xJf /guix/guix-cache.${METACALL_GUIX_ARCH}.tar.xz -C /root/; \
+		else \
+			echo "Cache file not found, skipping extraction"; \
+		fi
+
 
 # TODO: Move this to the end and try to remove ca-certificates too (once nss-certs have been installed)
 RUN set -exuo pipefail \
