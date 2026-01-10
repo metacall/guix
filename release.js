@@ -170,7 +170,7 @@ const release = async () => {
 			-t metacall/guix \
 			${containerScripts}/release.sh "${arch.guix}" "${containerOutput}" "${version}"`;
 
-		return runCommand(dockerCmd, architectures);
+		return runCommand(dockerCmd, arch);
 	});
 
 	// Execute the tasks and print the results
