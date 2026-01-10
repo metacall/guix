@@ -1,3 +1,6 @@
 # Ignore output folder
 out/*
 !out/.gitkeep
+
+# Ignore release folder
+.release

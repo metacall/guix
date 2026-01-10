@@ -4,12 +4,16 @@ const { exec } = require('child_process');
 const path = require('path');
 const crypto = require('crypto');
 const { createReadStream, createWriteStream } = require('fs');
-const { writeFile } = require('fs/promises');
+const { writeFile, mkdir, rename } = require('fs/promises');
 const { Readable, Transform } = require('stream');
 const { pipeline } = require('stream/promises');
 
 const runCommand = (cmd, context) => {
 	return new Promise((resolve) => {
+		// Print command
+		console.log(cmd);
+
+		// Execute command
 		exec(cmd, (error, stdout, stderr) => {
 			const exitCode = error ? error.code : 0;
 			
@@ -39,6 +43,8 @@ const sha256 = (filePath, fn, context) => {
 		const hash = crypto.createHash('sha256');
 		const stream = createReadStream(filePath);
 
+		console.log(`Computing SHA256 of: ${filePath}`);
+
 		stream.on('error', err => reject(err));
 		stream.on('data', chunk => hash.update(chunk));
 		stream.on('end', () => resolve(fn(hash.digest('hex'), context)));
@@ -66,7 +72,9 @@ const fetchBuildJson = async downloadBaseUrl => {
 };
 
 const fetchFile = async (outputDir, url, fileName, transform) => {
-	const channelsPath = path.join(outputDir, fileName);
+	const filePath = path.join(outputDir, fileName);
+
+	console.log(`Fetching file: ${url} => ${filePath}`);
 
 	const response = await fetch(url);
 
@@ -77,13 +85,15 @@ const fetchFile = async (outputDir, url, fileName, transform) => {
 	const streams = [
 		Readable.fromWeb(response.body),
 		transform,
-		createWriteStream(channelsPath)
+		createWriteStream(filePath)
 	].filter(Boolean);
 
     await pipeline(...streams);
+
+	return filePath;
 };
 
-const fetchChannels = async (outputDir) => fetchFile(
+const fetchChannels = async outputDir => fetchFile(
 	outputDir,
 	'https://ci.guix.gnu.org/eval/latest/channels.scm?spec=guix',
 	'channels.scm',
@@ -103,11 +113,26 @@ const fetchChannels = async (outputDir) => fetchFile(
 	})
 );
 
-const fetchInstall = async (outputDir) => fetchFile(
+const fetchInstall = async outputDir => fetchFile(
 	outputDir,
 	'https://guix.gnu.org/install.sh',
 	'install.sh'
 );
+
+const generateRelease = async releaseFiles => {
+	const releasePath = path.resolve(__dirname, '.release');
+	await mkdir(releasePath, { recursive: true });
+
+	console.log(`Generating release into: ${releasePath}`);
+
+    const movePromises = releaseFiles.map(async file => {
+      const fileName = path.basename(file);
+      const targetPath = path.join(releasePath, fileName);
+      await rename(file, targetPath);
+    });
+
+    return await Promise.all(movePromises);
+};
 
 const release = async () => {
 	const architectures = [
@@ -228,14 +253,24 @@ const release = async () => {
 
 	// Store the json
 	const buildPath = path.join(hostOutput, 'build.json');
-
 	await writeFile(buildPath, JSON.stringify(newJson, null, 2), 'utf8');
+	releaseFiles.push(buildPath);
+
+	// Store the version
+	const versionPath = path.join(hostOutput, 'VERSION');
+	await writeFile(versionPath, version, 'utf8');
+	releaseFiles.push(versionPath);
 
 	// Fetch the latest channels.scm replacing the URL
-	await fetchChannels(hostOutput);
+	const channelsPath = await fetchChannels(hostOutput);
+	releaseFiles.push(channelsPath);
 
 	// Fetch the latest install.sh
-	await fetchInstall(hostOutput);
+	const installPath = await fetchInstall(hostOutput);
+	releaseFiles.push(installPath);
+
+	// Move release files to the release path
+	await generateRelease(releaseFiles);
 };
 
 release();

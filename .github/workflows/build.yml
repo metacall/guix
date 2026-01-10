@@ -15,32 +15,145 @@ env:
   BUILDKIT_VERSION: 0.30.0
 
 jobs:
-  build:
-    name: Build the Docker image
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        platform: [
-          { docker: linux/amd64, guix: x86_64-linux },
-          { docker: linux/386, guix: i686-linux },
-          { docker: linux/arm/v7, guix: armhf-linux },
-          { docker: linux/arm64/v8, guix: aarch64-linux },
-          { docker: linux/ppc64le, guix: powerpc64le-linux },
-          { docker: linux/riscv64, guix: riscv64-linux }
-        ]
+  # build:
+  #   name: Build the Docker image
+  #   runs-on: ubuntu-latest
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       platform: [
+  #         { docker: linux/amd64, guix: x86_64-linux },
+  #         { docker: linux/386, guix: i686-linux },
+  #         { docker: linux/arm/v7, guix: armhf-linux },
+  #         { docker: linux/arm64/v8, guix: aarch64-linux },
+  #         { docker: linux/ppc64le, guix: powerpc64le-linux },
+  #         { docker: linux/riscv64, guix: riscv64-linux }
+  #       ]
 
+  #   steps:
+  #     - name: Checkout Repository
+  #       uses: actions/checkout@v4
+  #       with:
+  #         fetch-depth: 0
+
+  #     - name: Docker Metadata
+  #       id: meta
+  #       uses: docker/metadata-action@v5
+  #       with:
+  #         images: ${{ env.REGISTRY_IMAGE }}
+
+  #     - name: Set up QEMU
+  #       uses: docker/setup-qemu-action@v3
+
+  #     - name: Docker Setup BuildX
+  #       uses: docker/setup-buildx-action@v3
+  #       with:
+  #         version: v${{ env.BUILDKIT_VERSION }}
+
+  #     - name: Verify Docker BuildX Version
+  #       run: docker buildx version
+
+  #     - name: Create a new builder instance
+  #       run: docker buildx create --use --name insecure-builder --buildkitd-flags '--allow-insecure-entitlement security.insecure'
+
+  #     - name: Authenticate to Docker registry
+  #       if: github.event_name != 'pull_request'
+  #       uses: docker/login-action@v3
+  #       with:
+  #         username: ${{ secrets.DOCKER_USERNAME }}
+  #         password: ${{ secrets.DOCKER_PASSWORD }}
+
+  #     - name: Build and push by digest
+  #       id: build
+  #       uses: docker/build-push-action@v6
+  #       with:
+  #         platforms: ${{ matrix.platform.docker }}
+  #         labels: ${{ steps.meta.outputs.labels }}
+  #         outputs: type=image,name=docker.io/${{ env.REGISTRY_IMAGE }},push-by-digest=${{ github.event_name != 'pull_request' }},name-canonical=true,push=${{ github.event_name != 'pull_request' }}
+  #         load: ${{ github.event_name == 'pull_request' }}
+  #         tags: ${{ env.REGISTRY_IMAGE }}
+  #         allow: security.insecure
+  #         build-args: |
+  #           METACALL_GUIX_ARCH=${{ matrix.platform.guix }}
+  #         cache-from: type=registry,ref=docker.io/${{ env.REGISTRY_IMAGE }}
+
+  #     - name: Test (local)
+  #       if: ${{ github.event_name == 'pull_request' }}
+  #       run: |
+  #         docker run --rm --privileged --pull=false --platform ${{ matrix.platform.docker }} -v $(pwd)/test/:/root/test/ ${{ env.REGISTRY_IMAGE }} bash /root/test/test.sh
+
+  #     - name: Test (remote)
+  #       if: ${{ github.event_name != 'pull_request' }}
+  #       run: |
+  #         docker run --rm --privileged --platform ${{ matrix.platform.docker }} -v $(pwd)/test/:/root/test/ docker.io/${{ env.REGISTRY_IMAGE }}@${{ steps.build.outputs.digest }} bash /root/test/test.sh
+
+  #     - name: Export digest
+  #       if: github.event_name != 'pull_request'
+  #       run: |
+  #         mkdir -p /tmp/digests
+  #         digest="${{ steps.build.outputs.digest }}"
+  #         touch "/tmp/digests/${digest#sha256:}"
+
+  #     - name: Upload digest
+  #       if: github.event_name != 'pull_request'
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: digests-${{ matrix.platform.guix }}
+  #         path: /tmp/digests/*
+  #         if-no-files-found: error
+  #         retention-days: 1
+
+  # merge:
+  #   name: Merge digests for the manifest
+  #   runs-on: ubuntu-latest
+  #   if: github.event_name != 'pull_request'
+  #   needs:
+  #     - build
+  #   steps:
+  #     - name: Download digests
+  #       uses: actions/download-artifact@v4
+  #       with:
+  #         path: /tmp/digests
+  #         pattern: digests-*
+  #         merge-multiple: true
+
+  #     - name: Set up Docker Buildx
+  #       uses: docker/setup-buildx-action@v3
+  #       with:
+  #         version: v${{ env.BUILDKIT_VERSION }}
+
+  #     - name: Docker Metadata
+  #       id: meta
+  #       uses: docker/metadata-action@v5
+  #       with:
+  #         images: ${{ env.REGISTRY_IMAGE }}
+
+  #     - name: Authenticate to Docker registry
+  #       uses: docker/login-action@v3
+  #       with:
+  #         username: ${{ secrets.DOCKER_USERNAME }}
+  #         password: ${{ secrets.DOCKER_PASSWORD }}
+
+  #     - name: Create manifest list and push
+  #       working-directory: /tmp/digests
+  #       run: |
+  #         IMAGE_HASHES=$(printf '${{ env.REGISTRY_IMAGE }}@sha256:%s ' *)
+  #         docker buildx imagetools create -t ${{ env.REGISTRY_IMAGE }}:latest $IMAGE_HASHES
+
+  #     - name: Inspect image
+  #       run: |
+  #         docker buildx imagetools inspect ${{ env.REGISTRY_IMAGE }}:latest
+
+
+  release:
+    name: Release Guix Tarballs & Cache
+    # TODO: if: cron
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Docker Metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY_IMAGE }}
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -53,93 +166,18 @@ jobs:
       - name: Verify Docker BuildX Version
         run: docker buildx version
 
-      - name: Create a new builder instance
-        run: docker buildx create --use --name insecure-builder --buildkitd-flags '--allow-insecure-entitlement security.insecure'
+      - name: Release
+        run: node release.js
 
-      - name: Authenticate to Docker registry
-        if: github.event_name != 'pull_request'
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-
-      - name: Build and push by digest
-        id: build
-        uses: docker/build-push-action@v6
-        with:
-          platforms: ${{ matrix.platform.docker }}
-          labels: ${{ steps.meta.outputs.labels }}
-          outputs: type=image,name=docker.io/${{ env.REGISTRY_IMAGE }},push-by-digest=${{ github.event_name != 'pull_request' }},name-canonical=true,push=${{ github.event_name != 'pull_request' }}
-          load: ${{ github.event_name == 'pull_request' }}
-          tags: ${{ env.REGISTRY_IMAGE }}
-          allow: security.insecure
-          build-args: |
-            METACALL_GUIX_ARCH=${{ matrix.platform.guix }}
-          cache-from: type=registry,ref=docker.io/${{ env.REGISTRY_IMAGE }}
-
-      - name: Test (local)
-        if: ${{ github.event_name == 'pull_request' }}
+      - name: Set the tag name
         run: |
-          docker run --rm --privileged --pull=false --platform ${{ matrix.platform.docker }} -v $(pwd)/test/:/root/test/ ${{ env.REGISTRY_IMAGE }} bash /root/test/test.sh
+          echo "tag_name=v$(cat ./out/VERSION)" >> $GITHUB_ENV
+          echo "name=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
 
-      - name: Test (remote)
-        if: ${{ github.event_name != 'pull_request' }}
-        run: |
-          docker run --rm --privileged --platform ${{ matrix.platform.docker }} -v $(pwd)/test/:/root/test/ docker.io/${{ env.REGISTRY_IMAGE }}@${{ steps.build.outputs.digest }} bash /root/test/test.sh
-
-      - name: Export digest
-        if: github.event_name != 'pull_request'
-        run: |
-          mkdir -p /tmp/digests
-          digest="${{ steps.build.outputs.digest }}"
-          touch "/tmp/digests/${digest#sha256:}"
-
-      - name: Upload digest
-        if: github.event_name != 'pull_request'
-        uses: actions/upload-artifact@v4
+      - name: Release
+        uses: softprops/action-gh-release@v2.5.0
         with:
-          name: digests-${{ matrix.platform.guix }}
-          path: /tmp/digests/*
-          if-no-files-found: error
-          retention-days: 1
-
-  merge:
-    name: Merge digests for the manifest
-    runs-on: ubuntu-latest
-    if: github.event_name != 'pull_request'
-    needs:
-      - build
-    steps:
-      - name: Download digests
-        uses: actions/download-artifact@v4
-        with:
-          path: /tmp/digests
-          pattern: digests-*
-          merge-multiple: true
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-        with:
-          version: v${{ env.BUILDKIT_VERSION }}
-
-      - name: Docker Metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY_IMAGE }}
-
-      - name: Authenticate to Docker registry
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-
-      - name: Create manifest list and push
-        working-directory: /tmp/digests
-        run: |
-          IMAGE_HASHES=$(printf '${{ env.REGISTRY_IMAGE }}@sha256:%s ' *)
-          docker buildx imagetools create -t ${{ env.REGISTRY_IMAGE }}:latest $IMAGE_HASHES
-
-      - name: Inspect image
-        run: |
-          docker buildx imagetools inspect ${{ env.REGISTRY_IMAGE }}:latest
+          files: .release/*
+          fail_on_unmatched_files: true
+          name: Guix Release Snapshot (${{ env.name }})
+          tag_name: ${{ env.tag_name }}
