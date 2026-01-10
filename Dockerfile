@@ -37,8 +37,10 @@ RUN set -exuo pipefail \
 	&& if ! echo "${BINARY_EXPECTED_SHA}  /guix/guix-binary.${METACALL_GUIX_ARCH}.tar.xz" | sha256sum -c - > /dev/null 2>&1; then echo echo "ERROR: Binary checksum verification failed!" && exit 1; fi \
 	&& export CACHE_DOWNLOAD_URL=$(echo "${METADATA}" | jq -r '.cache.url') \
 	&& export CACHE_EXPECTED_SHA=$(echo "${METADATA}" | jq -r '.cache.sha256') \
-	&& wget -O /guix/guix-cache.${METACALL_GUIX_ARCH}.tar.xz "${CACHE_DOWNLOAD_URL}" \
-	&& if ! echo "${CACHE_EXPECTED_SHA}  /guix/guix-cache.${METACALL_GUIX_ARCH}.tar.xz" | sha256sum -c - > /dev/null 2>&1; then echo echo "ERROR: Cache checksum verification failed!" && exit 1; fi \
+	&& if [ "${CACHE_DOWNLOAD_URL}" != "null" ] && [ "${CACHE_EXPECTED_SHA}" != "null" ]; then \
+		wget -O /guix/guix-cache.${METACALL_GUIX_ARCH}.tar.xz "${CACHE_DOWNLOAD_URL}" \
+		&& if ! echo "${CACHE_EXPECTED_SHA}  /guix/guix-cache.${METACALL_GUIX_ARCH}.tar.xz" | sha256sum -c - > /dev/null 2>&1; then echo echo "ERROR: Cache checksum verification failed!" && exit 1; fi; \
+	fi \
 	&& wget -O /guix/channels.scm "${LATEST_RELEASE}/channels.scm" \
 	&& wget -O /guix/install.sh "${LATEST_RELEASE}/install.sh"
 
