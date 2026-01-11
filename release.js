@@ -8,6 +8,8 @@ const { writeFile, mkdir, rename } = require('fs/promises');
 const { Readable, Transform } = require('stream');
 const { pipeline } = require('stream/promises');
 
+const METACALL_GUIX_MAX_JOBS = process.env.METACALL_GUIX_MAX_JOBS ? parseInt(process.env.METACALL_GUIX_MAX_JOBS, 10) : 0;
+
 const runCommand = (cmd, context) => {
 	return new Promise((resolve) => {
 		// Print command
@@ -134,6 +136,22 @@ const generateRelease = async releaseFiles => {
     return await Promise.all(movePromises);
 };
 
+const executeTasks = async (tasks, maxJobs) => {
+	if (maxJobs === 0) {
+		return await Promise.all(tasks);
+	}
+
+	const result = [];
+
+	for (let i = 0; i < tasks.length; i += maxJobs) {
+		const batch = tasks.slice(i, i + maxJobs);
+		const batchResult = await Promise.all(batch);
+		result.push(...batchResult);
+	}
+
+	return result;
+}
+
 const release = async () => {
 	const architectures = [
 		{ docker: 'linux/amd64', guix: 'x86_64-linux' },
@@ -174,7 +192,7 @@ const release = async () => {
 	});
 
 	// Execute the tasks and print the results
-	const results = await Promise.all(tasks);
+	const results = await executeTasks(tasks, METACALL_GUIX_MAX_JOBS);
 	const errors = results.filter(result => result.exitCode != 0);
 
 	if (errors.length > 0) {

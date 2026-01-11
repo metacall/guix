@@ -178,6 +178,8 @@ jobs:
         run: docker buildx version
 
       - name: Release
+        env:
+          METACALL_GUIX_MAX_JOBS: 2
         run: node release.js
 
       - name: Set the tag name
