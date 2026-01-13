@@ -140,15 +140,31 @@ jobs:
   #         IMAGE_HASHES=$(printf '${{ env.REGISTRY_IMAGE }}@sha256:%s ' *)
   #         docker buildx imagetools create -t ${{ env.REGISTRY_IMAGE }}:latest $IMAGE_HASHES
 
+  # TODO: If cron, do the version tag like: v20260113
+
+
   #     - name: Inspect image
   #       run: |
   #         docker buildx imagetools inspect ${{ env.REGISTRY_IMAGE }}:latest
 
 
-  release:
+  tarball:
     name: Release Guix Tarballs & Cache
-    # TODO: if: cron
+  # TODO: if: cron
+  #   needs:
+  #     - merge
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [
+          "x86_64-linux",
+          "i686-linux",
+          "armhf-linux",
+          "aarch64-linux",
+          "powerpc64le-linux",
+          "riscv64-linux"
+        ]
     steps:
       - name: Free Disk Space
         uses: jlumbroso/free-disk-space@main
@@ -177,9 +193,37 @@ jobs:
       - name: Verify Docker BuildX Version
         run: docker buildx version
 
+      - name: Build image ${{ matrix.platform }}
+        run: |
+          node release.js ${{ matrix.platform }}
+          rm -rf ./out/.gitkeep
+
+      - name: Upload tarball artifact
+        uses: actions/upload-artifact@v6.0.0
+        with:
+          name: tarball-${{ matrix.platform }}
+          path: out/*
+          if-no-files-found: error
+
+  tarball:
+    name: Release Guix Tarballs & Cache
+  # TODO: if: cron
+    needs:
+      - tarball
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download tarball artifacts for all architectures
+        uses: actions/download-artifact@v7.0.0
+        with:
+          merge-multiple: true
+          path: out/
+
       - name: Release
-        env:
-          METACALL_GUIX_MAX_JOBS: 2
         run: node release.js
 
       - name: Set the tag name

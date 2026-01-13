@@ -7,8 +7,7 @@ const { createReadStream, createWriteStream } = require('fs');
 const { writeFile, mkdir, rename } = require('fs/promises');
 const { Readable, Transform } = require('stream');
 const { pipeline } = require('stream/promises');
-
-const METACALL_GUIX_MAX_JOBS = process.env.METACALL_GUIX_MAX_JOBS ? parseInt(process.env.METACALL_GUIX_MAX_JOBS, 10) : 0;
+const { arch } = require('process');
 
 const runCommand = (cmd, context) => {
 	return new Promise((resolve) => {
@@ -136,72 +135,60 @@ const generateRelease = async releaseFiles => {
     return await Promise.all(movePromises);
 };
 
-const executeTasks = async (tasks, maxJobs) => {
-	if (maxJobs === 0) {
-		return await Promise.all(tasks);
-	}
-
-	const result = [];
-
-	for (let i = 0; i < tasks.length; i += maxJobs) {
-		const batch = tasks.slice(i, i + maxJobs);
-		const batchResult = await Promise.all(batch);
-		result.push(...batchResult);
-	}
-
-	return result;
-}
-
-const release = async () => {
-	const architectures = [
-		{ docker: 'linux/amd64', guix: 'x86_64-linux' },
-		{ docker: 'linux/386', guix: 'i686-linux' },
-		{ docker: 'linux/arm/v7', guix: 'armhf-linux' },
-		{ docker: 'linux/arm64/v8', guix: 'aarch64-linux' },
-		{ docker: 'linux/ppc64le', guix: 'powerpc64le-linux' },
-		{ docker: 'linux/riscv64', guix: 'riscv64-linux' }
-	];
-
+const release = async (architectures, build, metadata) => {
 	// Install QEMU for executing the images in multiple architectures
-	const dependency = await runCommand('docker run --rm --privileged multiarch/qemu-user-static --reset -p yes');
+	if (build === true && architectures.length > 0) {
+		const dependency = await runCommand('docker run --rm --privileged multiarch/qemu-user-static --reset -p yes');
 
-	if (dependency.exitCode != 0) {
-		throw Error(`Failed to install QEMU multiarch:
-			${dependency.stdout}
-			${dependency.stderr}
-		`);
+		if (dependency.exitCode != 0) {
+			throw Error(`Failed to install QEMU multiarch:
+				${dependency.stdout}
+				${dependency.stderr}
+			`);
+		}
 	}
 
 	// Define constants
 	const version = new Date().toISOString().slice(0, 10).replace(/-/g, '');
 	const hostOutput = path.resolve(__dirname, 'out');
-	const containerOutput = '/output';
-	const hostScripts = path.resolve(__dirname, 'scripts');
-	const containerScripts = '/scripts';
 
-	// Define tasks for releasing for each architecture
-	const tasks = architectures.map(arch => {
-		const dockerCmd = `docker run --rm --privileged \
-			-v ${hostOutput}:${containerOutput} \
-			-v ${hostScripts}:${containerScripts} \
-			--platform ${arch.docker} \
-			-t metacall/guix \
-			${containerScripts}/release.sh "${arch.guix}" "${containerOutput}" "${version}"`;
+	// Build the images
+	if (build === true) {
+		const containerOutput = '/output';
+		const hostScripts = path.resolve(__dirname, 'scripts');
+		const containerScripts = '/scripts';
 
-		return runCommand(dockerCmd, arch);
-	});
+		// Define tasks for releasing for each architecture
+		const tasks = architectures.map(arch => {
+			const dockerCmd = `docker run --rm --privileged \
+				-v ${hostOutput}:${containerOutput} \
+				-v ${hostScripts}:${containerScripts} \
+				--platform ${arch.docker} \
+				-t metacall/guix \
+				${containerScripts}/release.sh "${arch.guix}" "${containerOutput}" "${version}"`;
 
-	// Execute the tasks and print the results
-	const results = await executeTasks(tasks, METACALL_GUIX_MAX_JOBS);
-	const errors = results.filter(result => result.exitCode != 0);
+			return runCommand(dockerCmd, arch);
+		});
 
-	if (errors.length > 0) {
-		console.log('ERROR: While processing the following architectures:')
-		report(errors);
-		process.exit(1);
+		// Execute the tasks and print the results
+		const results = await Promise.all(tasks);
+		const errors = results.filter(result => result.exitCode != 0);
+
+		if (errors.length > 0) {
+			console.log('ERROR: While processing the following architectures:');
+			report(errors);
+			process.exit(1);
+		}
+
+		report(results);
 	}
 
-	report(results);
+	if (metadata === false) {
+		console.log('Skipping metadata generation...');
+		process.exit(0);
+	} else {
+		console.log('Generating metadata...');
+	}
 
 	// Get latest release download base URL
 	const latestReleaseUrl = await latestRelease();
@@ -291,4 +278,55 @@ const release = async () => {
 	await generateRelease(releaseFiles);
 };
 
-release();
+const parseArguments = () => {
+	const architectures = [
+		{ docker: 'linux/amd64', guix: 'x86_64-linux' },
+		{ docker: 'linux/386', guix: 'i686-linux' },
+		{ docker: 'linux/arm/v7', guix: 'armhf-linux' },
+		{ docker: 'linux/arm64/v8', guix: 'aarch64-linux' },
+		{ docker: 'linux/ppc64le', guix: 'powerpc64le-linux' },
+		{ docker: 'linux/riscv64', guix: 'riscv64-linux' }
+	];
+
+	const args = process.argv.slice(2);
+
+	// Without arguments, build the metadata
+	if (args.length === 0) {
+		console.log('No architecture detected, only metadata will be generated...');
+		return {
+			architectures,
+			build: false,
+			metadata: true
+		};
+	}
+
+	// With all argument, build all images and metadata
+	if (args.length === 1 && args[0] === 'all') {
+		console.log('All architectures detected, images and metadata will be generated...');
+		return {
+			architectures,
+			build: true,
+			metadata: true
+		};
+	}
+
+	// Otherwise, build the specified arquitecutres and avoid metadata, this allow parallel builds
+	const argsArchitectures = architectures.filter(arch => args.includes(arch.guix));
+	const guixArchitectures = argsArchitectures.map(arch => arch.guix);
+
+	console.log(`${guixArchitectures.join(', ')} architectures detected, only images will be generated without metadata...`);
+
+	return {
+		architectures: argsArchitectures,
+		build: true,
+		metadata: false
+	};
+};
+
+const main = async () => {
+	const options = parseArguments();
+
+	return await release(options.architectures, options.build, options.metadata);
+};
+
+main();
