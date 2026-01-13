@@ -205,7 +205,7 @@ jobs:
           path: out/*
           if-no-files-found: error
 
-  tarball:
+  release:
     name: Release Guix Tarballs & Cache
   # TODO: if: cron
     needs:
