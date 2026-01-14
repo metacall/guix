@@ -139,6 +139,7 @@ jobs:
         run: |
           echo "tag_name=v$(date +'%Y%m%d')" >> $GITHUB_ENV
 
+      # TODO: Version only if it's cron
       - name: Create manifest list and push
         working-directory: /tmp/digests
         run: |
@@ -214,6 +215,17 @@ jobs:
       - tarball
     runs-on: ubuntu-latest
     steps:
+      - name: Free Disk Space
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
+
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
@@ -222,6 +234,7 @@ jobs:
       - name: Download tarball artifacts for all architectures
         uses: actions/download-artifact@v7.0.0
         with:
+          pattern: tarball-*
           merge-multiple: true
           path: out/
 
