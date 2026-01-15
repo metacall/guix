@@ -37,8 +37,10 @@ ARCH=$1
 DEST=$2
 VERSION=$3
 
-# Build the tarball
-guix pack -f tarball -C xz --system=${ARCH} --localstatedir --profile-name=current-guix guix
+# Build the tarball with current guix
+guix pack -f tarball -C xz \
+	--system=${ARCH} --localstatedir --profile-name=current-guix \
+	--expression='((@ (gnu packages package-management) current-guix))'
 
 # Copy the tarball
 TARBALL_PATH=$(find /gnu/store/ -maxdepth 1 -name "*-guix-tarball-pack.tar.xz")
