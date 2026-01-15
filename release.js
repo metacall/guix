@@ -135,6 +135,20 @@ const generateRelease = async releaseFiles => {
     return await Promise.all(movePromises);
 };
 
+const executeTasks = async tasks => {
+	const results = await Promise.all(tasks);
+	const errors = results.filter(result => result.exitCode != 0);
+
+	if (errors.length > 0) {
+		console.log('ERROR: While processing the following architectures:');
+		report(errors);
+		return errors;
+	}
+
+	report(results);
+	return [];
+};
+
 const release = async (architectures, build, metadata) => {
 	// Install QEMU for executing the images in multiple architectures
 	if (build === true && architectures.length > 0) {
@@ -171,16 +185,19 @@ const release = async (architectures, build, metadata) => {
 		});
 
 		// Execute the tasks and print the results
-		const results = await Promise.all(tasks);
-		const errors = results.filter(result => result.exitCode != 0);
+		const errors = await executeTasks(tasks);
 
 		if (errors.length > 0) {
-			console.log('ERROR: While processing the following architectures:');
-			report(errors);
-			process.exit(1);
-		}
+			// Retry the job, sometimes Guix is fragile and fails
+			console.log(`Encountered ${errors.length} errors, retrying the failed tasks...`);
+			const retryTasks = errors.map(error => runCommand(error.command, error.context));
+			const retryErrors = await executeTasks(retryTasks);
 
-		report(results);
+			if (retryErrors.length > 0) {
+				console.log(`Encountered ${retryErrors.length} errors while retrying, exiting...`);
+				process.exit(1);
+			}
+		}
 	}
 
 	if (metadata === false) {

@@ -1,5 +1,8 @@
 name: Build
 
+# TODO: Define version in a single place
+# So we avoid issues when the build takes place between two days
+
 on:
   pull_request:
   workflow_dispatch:
