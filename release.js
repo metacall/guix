@@ -155,6 +155,7 @@ const fetchInstall = async outputDir => fetchFile(
 
 const generateRelease = async (releasePath, releaseFiles) => {
 	console.log(`Generating release into: ${releasePath}`);
+	console.log(releaseFiles.join('\n'));
 
     const movePromises = releaseFiles.map(async file => {
       const fileName = path.basename(file);
@@ -194,7 +195,7 @@ const release = async (architectures, build, metadata) => {
 
 	// Define constants
 	const releasePath = await createReleasePath();
-	const version = await defineVersion();
+	const version = await defineVersion(releasePath);
 	const hostOutput = path.resolve(__dirname, 'out');
 
 	// Build the images
