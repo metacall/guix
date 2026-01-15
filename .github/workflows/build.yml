@@ -1,11 +1,10 @@
 name: Build
 
-# TODO: Define version in a single place
-# So we avoid issues when the build takes place between two days
-
 on:
   pull_request:
   workflow_dispatch:
+  schedule:
+    - cron: '0 1 * * 1'  # 1 AM every Monday (UTC)
   push:
     branches:
       - master
@@ -138,17 +137,30 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Set the tag name
+      - name: Set the version and tag name
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
         run: |
-          echo "tag_name=v$(date +'%Y%m%d')" >> $GITHUB_ENV
+          mkdir -p /tmp/release
+          printf "$(date +'%Y%m%d')" &> /tmp/release/VERSION
+          echo "tag_name=v$(cat /tmp/release/VERSION)" >> $GITHUB_ENV
 
-      # TODO: Version only if it's cron
+      - name: Upload version artifact
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v6.0.0
+        with:
+          name: version
+          path: /tmp/release/*
+          if-no-files-found: error
+
       - name: Create manifest list and push
         working-directory: /tmp/digests
         run: |
           IMAGE_HASHES=$(printf '${{ env.REGISTRY_IMAGE }}@sha256:%s ' *)
           docker buildx imagetools create -t ${{ env.REGISTRY_IMAGE }}:latest $IMAGE_HASHES
-          docker buildx imagetools create -t ${{ env.REGISTRY_IMAGE }}:${{ env.tag_name }} $IMAGE_HASHES
+
+          if [ "${{ github.event_name }}" = "schedule" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            docker buildx imagetools create -t ${{ env.REGISTRY_IMAGE }}:${{ env.tag_name }} $IMAGE_HASHES
+          fi
 
       - name: Inspect image
         run: |
@@ -156,7 +168,7 @@ jobs:
 
   tarball:
     name: Release Guix Tarballs & Cache
-  # TODO: if: cron
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     needs:
       - merge
     runs-on: ubuntu-latest
@@ -199,6 +211,15 @@ jobs:
       - name: Verify Docker BuildX Version
         run: docker buildx version
 
+      - name: Create release folder
+        run: mkdir -p ./.release
+
+      - name: Download version
+        uses: actions/download-artifact@v7.0.0
+        with:
+          name: version
+          path: ./.release/
+
       - name: Build image ${{ matrix.platform }}
         run: |
           node release.js ${{ matrix.platform }}
@@ -213,7 +234,7 @@ jobs:
 
   release:
     name: Release Guix Tarballs & Cache
-  # TODO: if: cron
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     needs:
       - tarball
     runs-on: ubuntu-latest
@@ -241,12 +262,21 @@ jobs:
           merge-multiple: true
           path: out/
 
+      - name: Create release folder
+        run: mkdir -p ./.release
+
+      - name: Download version
+        uses: actions/download-artifact@v7.0.0
+        with:
+          name: version
+          path: ./.release/
+
       - name: Release
         run: node release.js
 
       - name: Set the tag name
         run: |
-          echo "tag_name=v$(cat ./out/VERSION)" >> $GITHUB_ENV
+          echo "tag_name=v$(cat ./.release/VERSION)" >> $GITHUB_ENV
           echo "name=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
 
       - name: Release

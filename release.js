@@ -4,10 +4,41 @@ const { exec } = require('child_process');
 const path = require('path');
 const crypto = require('crypto');
 const { createReadStream, createWriteStream } = require('fs');
-const { writeFile, mkdir, rename } = require('fs/promises');
+const { mkdir, stat, readFile, writeFile, rename } = require('fs/promises');
 const { Readable, Transform } = require('stream');
 const { pipeline } = require('stream/promises');
-const { arch } = require('process');
+
+const createReleasePath = async () => {
+	const releasePath = path.resolve(__dirname, '.release');
+	await mkdir(releasePath, { recursive: true });
+	return releasePath;
+};
+
+const defineVersion = async releasePath => {
+	const versionPath = path.join(releasePath, 'VERSION');
+
+	const fileExists = async filePath => {
+		try {
+			await stat(filePath);
+			return true;
+		} catch (err) {
+			return false;
+		}
+	};
+
+	// If VERSION exists, load it
+	if (await fileExists(versionPath)) {
+		return await readFile(versionPath, 'utf-8');
+	}
+
+	// Otherwise generate it
+	const version = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+
+	// Store the version
+	await writeFile(versionPath, version, 'utf8');
+
+	return version;
+};
 
 const runCommand = (cmd, context) => {
 	return new Promise((resolve) => {
@@ -120,10 +151,9 @@ const fetchInstall = async outputDir => fetchFile(
 	'install.sh'
 );
 
-const generateRelease = async releaseFiles => {
-	const releasePath = path.resolve(__dirname, '.release');
-	await mkdir(releasePath, { recursive: true });
 
+
+const generateRelease = async (releasePath, releaseFiles) => {
 	console.log(`Generating release into: ${releasePath}`);
 
     const movePromises = releaseFiles.map(async file => {
@@ -163,7 +193,8 @@ const release = async (architectures, build, metadata) => {
 	}
 
 	// Define constants
-	const version = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+	const releasePath = await createReleasePath();
+	const version = await defineVersion();
 	const hostOutput = path.resolve(__dirname, 'out');
 
 	// Build the images
@@ -278,11 +309,6 @@ const release = async (architectures, build, metadata) => {
 	await writeFile(buildPath, JSON.stringify(newJson, null, 2), 'utf8');
 	releaseFiles.push(buildPath);
 
-	// Store the version
-	const versionPath = path.join(hostOutput, 'VERSION');
-	await writeFile(versionPath, version, 'utf8');
-	releaseFiles.push(versionPath);
-
 	// Fetch the latest channels.scm replacing the URL
 	const channelsPath = await fetchChannels(hostOutput);
 	releaseFiles.push(channelsPath);
@@ -292,7 +318,7 @@ const release = async (architectures, build, metadata) => {
 	releaseFiles.push(installPath);
 
 	// Move release files to the release path
-	await generateRelease(releaseFiles);
+	await generateRelease(releasePath, releaseFiles);
 };
 
 const parseArguments = () => {
