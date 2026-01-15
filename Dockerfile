@@ -75,7 +75,6 @@ RUN --mount=type=bind,from=download,source=/guix,target=/guix \
 			echo "Cache file not found, skipping extraction"; \
 		fi
 
-
 # TODO: Move this to the end and try to remove ca-certificates too (once nss-certs have been installed)
 RUN set -exuo pipefail \
 	&& export APT_GNUPG= \
@@ -113,6 +112,7 @@ RUN --security=insecure --mount=type=tmpfs,target=/tmp/.cache \
 	set -exuo pipefail \
 	&& mkdir -p /tmp/.cache /root/.cache \
 	&& export XDG_CACHE_HOME=/tmp/.cache \
+	&& sh -c '/entry-point.sh guix describe' \
 	&& sh -c '/entry-point.sh guix pull --fallback' \
 	&& sh -c '/entry-point.sh guix package --fallback -i nss-certs' \
 	&& sh -c '/entry-point.sh guix gc' \
