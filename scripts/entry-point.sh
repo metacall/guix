@@ -32,6 +32,12 @@ fi
 
 set -exuo pipefail
 
+# Cache breaks for 32-bit file system (armhf-linux)
+if [ "${XDG_CACHE_HOME:-}" != "" ] && [ "${XDG_CACHE_HOME:-}" != "/root/.cache" ]; then
+	mkdir -p "${XDG_CACHE_HOME}" "/root/.cache"
+	mv /root/.cache/* "${XDG_CACHE_HOME}/"
+fi
+
 # Load profile enviroment variables
 export INFOPATH="/usr/share/info"
 export MANPATH="/usr/share/man"
@@ -132,5 +138,11 @@ fi
 
 # Kill guix daemon
 kill -9 $GUIX_DAEMON
+
+# Cache breaks for 32-bit file system (armhf-linux)
+if [ "${XDG_CACHE_HOME:-}" != "" ] && [ "${XDG_CACHE_HOME:-}" != "/root/.cache" ]; then
+	# Restore the cache to the original folder
+	cp -a "${XDG_CACHE_HOME}/." /root/.cache/
+fi
 
 exit ${GUIX_RESULT}

@@ -206,9 +206,15 @@ const release = async (architectures, build, metadata) => {
 
 		// Define tasks for releasing for each architecture
 		const tasks = architectures.map(arch => {
+			// Cache breaks for 32-bit file system (armhf-linux)
+			const tmpfsCache = (arch.guix === 'armhf-linux')
+				? '-e XDG_CACHE_HOME=/tmp/.cache --mount type=tmpfs,target=/tmp/.cache'
+				: '';
+
 			const dockerCmd = `docker run --rm --privileged \
 				-v ${hostOutput}:${containerOutput} \
 				-v ${hostScripts}:${containerScripts} \
+				${tmpfsCache} \
 				--platform ${arch.docker} \
 				-t metacall/guix \
 				${containerScripts}/release.sh "${arch.guix}" "${containerOutput}" "${version}"`;

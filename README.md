@@ -176,14 +176,14 @@ guix pull: error: Git error: could not read directory '/root/.cache/guix/checkou
 This happens because there is a mismatch in inodes between 32 and 64-bits. The only way to workaround this is to use `tmpfs` for storing the checkouts of Guix, or any other alternative volume that supports 64-bit inodes, for example binding the volume into the host if you are running a 64-bit host. We do this at build time with the following instruction:
 
 ```docker
-RUN --security=insecure --mount=type=tmpfs,target=/root/.cache/guix \
+RUN --security=insecure --mount=type=tmpfs,target=/root/.cache \
 	sh -c '/entry-point.sh guix pull'
 ```
 
 Similarly, for doing it at runtime:
 ```sh
 docker run --privileged --platform linux/arm/v7 -it \
-	--mount type=tmpfs,target=/root/.cache/guix \
+	--mount type=tmpfs,target=/root/.cache \
 	metacall/guix guix pull
 ```
 
@@ -234,3 +234,23 @@ docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
 [`MetaCall Guix GCC Example`](https://github.com/metacall/guix-gcc-example): This repository demonstrates how to use MetaCall Guix Docker Image for building portable self contained packages, in this case GCC@2.95. The idea of this repository is to make a Proof of Concept for Blink Virtual Machine by using GCC and possibly try to do the same with MetaCall in the near future.
 
 [`MetaCall Linux Distributable`](https://github.com/metacall/distributable-linux): This repository provides a self-contained and portrable version of MetaCall Core for Linux.
+
+## Release
+
+For releasing you have the following commands:
+
+```sh
+# Generates the release for all architectures including the metadata (build.json, channels.scm, ...)
+node release.js all
+```
+
+```sh
+# Generates the release the specified architectures without the metadata
+# It can be used for building in parallel on the CI
+node release.js x86_64-linux armhf-linux ...
+```
+
+```sh
+# Generates the metadata from the previously built tarballs
+node release.js
+```

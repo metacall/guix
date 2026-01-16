@@ -109,15 +109,10 @@ ENV GUIX_PROFILE="/root/.config/guix/current" \
 # Run pull (https://github.com/docker/buildx/blob/master/README.md#--allowentitlement)
 # Uses tmpfs in order to avoid issues with large files in 32-bit file system (armhf-linux)
 RUN --security=insecure --mount=type=tmpfs,target=/tmp/.cache \
+	--mount=type=bind,source=scripts/pull.sh,target=/pull.sh \
 	set -exuo pipefail \
-	&& mkdir -p /tmp/.cache /root/.cache \
-	&& export XDG_CACHE_HOME=/tmp/.cache \
-	&& sh -c '/entry-point.sh guix describe' \
-	&& sh -c '/entry-point.sh guix pull --fallback' \
-	&& sh -c '/entry-point.sh guix package --fallback -i nss-certs' \
-	&& sh -c '/entry-point.sh guix gc' \
-	&& sh -c '/entry-point.sh guix gc --optimize' \
-	&& cp -a /tmp/.cache/. /root/.cache/
+	&& if [ "$METACALL_GUIX_ARCH" = "armhf-linux" ]; then export XDG_CACHE_HOME=/tmp/.cache; fi \
+	&& /entry-point.sh /pull.sh
 
 ENTRYPOINT ["/entry-point.sh"]
 CMD ["sh"]

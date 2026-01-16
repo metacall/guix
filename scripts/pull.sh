@@ -32,24 +32,39 @@ fi
 
 set -exuo pipefail
 
-# Get the parameters
-ARCH=$1
-DEST=$2
-VERSION=$3
-
-# Debug guix current state
+# Debug current version
 guix describe
 guix pull --list-generations
 
-# Build the tarball with current guix
-guix pack -f tarball -C xz \
-	--system=${ARCH} --localstatedir --profile-name=current-guix \
-	--expression='((@ (gnu packages package-management) current-guix))'
+# Pull with fallback
+guix pull --fallback
 
-# Copy the tarball
-TARBALL_PATH=$(find /gnu/store/ -maxdepth 1 -name "*-guix-tarball-pack.tar.xz")
-mv "${TARBALL_PATH}" "${DEST}/guix-binary-${VERSION}.${ARCH}.tar.xz"
+# Delete previous generations
+guix pull --delete-generations
 
-# Generate the cache
-cd $HOME
-guix shell xz -- tar -cJf "${DEST}/guix-cache-${VERSION}.${ARCH}.tar.xz" --hard-dereference .cache
+WORKDIR=$(pwd)
+cd /var/guix/profiles/per-user/root
+GUIX_CURRENT_GENERATION=$(readlink -f current-guix)
+
+for link in current-guix-*-link; do
+	target=$(readlink -f "${link}")
+	if [ "${target}" != "${GUIX_CURRENT_GENERATION}" ] && [ -d "${target}" ]; then
+		rm -rf "${target}"
+	fi
+done
+
+rm -f current-guix current-guix-*-link
+ln -sf "${GUIX_CURRENT_GENERATION}" current-guix-1-link
+ln -sf current-guix-1-link current-guix
+cd "${WORKDIR}"
+
+# Debug current version
+guix describe
+guix pull --list-generations
+
+# Install dependencies
+guix package --fallback -i nss-certs
+
+# Garbage Collect
+guix gc
+guix gc --optimize
