@@ -51,5 +51,5 @@ TARBALL_PATH=$(find /gnu/store/ -maxdepth 1 -name "*-guix-tarball-pack.tar.xz")
 mv "${TARBALL_PATH}" "${DEST}/guix-binary-${VERSION}.${ARCH}.tar.xz"
 
 # Generate the cache
-cd $HOME
+cd "${XDG_CACHE_HOME}/.."
 guix shell xz -- tar -cJf "${DEST}/guix-cache-${VERSION}.${ARCH}.tar.xz" --hard-dereference .cache
