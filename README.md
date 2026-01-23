@@ -1,6 +1,6 @@
 # MetaCall Guix
 
-Docker image for using Guix in a CI/CD environment.
+Docker image and binary releases for using Guix in a CI/CD environment.
 
 ## Design philosophy
 
@@ -20,7 +20,27 @@ All these design decisions are taken because we focus only on providing CI/CD en
 
 The main objective of this repository is to have a tool for producing ultra portable, reproducible and cross-platform builds for production ready applications that can be installed from a shell script or uncompressing them into root.
 
-## How to use it
+## Install Binary Releases
+
+A by-product of this repository is that we produce a weekly release of the `current-guix` tagged by date. We use this for caching and speeding up builds, but it can be used by end users for installing it inside or outside Docker in non-guix systems. Each release includes:
+
+ - Guix Binary Tarball & Cache for `x86_64`, `aarch64`, `armhf`, `i686`, `powerpc64le` and `riscv64` Linux architectures.
+ - A fixed version of `channels.scm` with the commit of the release taken from Guix CI/CD.
+ - The `install.sh` script for installing the binary taken from the Guix Website.
+ - A `build.json` file for verifying the SHA256 of binaries and caches.
+ - A `VERSION` file indicating the tag in the form: `v[year][month][day]`.
+
+If you want to install the release `v20260116` in `x86_64` execute the following commands:
+
+```sh
+RELEASE="https://github.com/metacall/guix/releases/download/v20260116"
+wget "${RELEASE}/install.sh"
+wget "${RELEASE}/guix-binary-20260116.x86_64-linux.tar.xz"
+export GUIX_BINARY_FILE_NAME="$(pwd)/guix-binary-20260116.x86_64-linux.tar.xz"
+sudo ./install.sh
+```
+
+## How to use `metacall/guix` Docker Image
 
 This image encapsulates the Guix daemon. You can view the image details and tags in [DockerHub](https://hub.docker.com/r/metacall/guix). For now, Guix does not have a daemonless option, so packaging it into a Docker image has some implications. The Guix daemon needs to fork, and forking a process during build phase is not allowed, so we have to work with it in a different way. There are two options:
 
@@ -39,11 +59,11 @@ This image encapsulates the Guix daemon. You can view the image details and tags
    # Build the base image
    docker build -t metacall/example -f Dockerfile .
    # Run a guix pull
-   docker run --privileged --name tmp metacall/example sh -c 'guix pull'
+   docker run --privileged --name tmp metacall/example guix pull
    # Commit changes
    docker commit tmp metacall/new-image && docker rm -f tmp
    # Install some package
-   docker run --privileged --name tmp metacall/example sh -c 'guix package -i guile'
+   docker run --privileged --name tmp metacall/example guix package -i guile
    # Commit changes
    docker commit tmp metacall/example && docker rm -f tmp
    # Push the final image
@@ -63,8 +83,7 @@ This image encapsulates the Guix daemon. You can view the image details and tags
    COPY . .
 
    # Run guix pull and install dependencies
-   RUN --security=insecure sh -c '/entry-point.sh guix pull' \
-       && sh -c '/entry-point.sh guix package -i guile'
+   RUN --security=insecure /entry-point.sh sh -c 'guix pull && guix package -i guile'
    ```
 
    For building this image we need Docker `v19.03` or superior and the buildx plugin:
@@ -193,11 +212,12 @@ If you want to keep the cache of the `guix pull` command (normally stored in `XD
 RUN --security=insecure --mount=type=tmpfs,target=/tmp/.cache \
 	&& mkdir -p /tmp/.cache /root/.cache \
 	&& export XDG_CACHE_HOME=/tmp/.cache \
-	&& sh -c '/entry-point.sh guix pull' \
-	&& cp -a /tmp/.cache/. /root/.cache/
+	&& sh -c '/entry-point.sh guix pull'
 ```
 
-This will store the cache in the default folder, speeding up next pulls.
+If `XDG_CACHE_HOME` is different from default, `/entry-point.sh` assumes you are mounting a `tmpfs` filesystem, so before running the command list, it will copy the cache into the new folder (e.g. `/tmp/.cache`) once it finishes the command list, it copies all the cache contents back into the default folder (e.g. `$HOME/.cache`).
+
+This will store the latest cache in the default folder, speeding up next pulls and avoiding issues with 32-bit file systems.
 
 ### Granting entitlement
 

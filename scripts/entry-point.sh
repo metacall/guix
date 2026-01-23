@@ -34,6 +34,7 @@ set -exuo pipefail
 
 # Cache breaks for 32-bit file system (armhf-linux)
 if [ "${XDG_CACHE_HOME:-}" != "" ] && [ "${XDG_CACHE_HOME:-}" != "/root/.cache" ]; then
+	# TODO: Should we verify if ${XDG_CACHE_HOME} is tmpfs before doing this?
 	mkdir -p "${XDG_CACHE_HOME}" "/root/.cache"
 	cp -a /root/.cache/* "${XDG_CACHE_HOME}/"
 	sync
@@ -142,6 +143,7 @@ kill -9 $GUIX_DAEMON
 
 # Cache breaks for 32-bit file system (armhf-linux)
 if [ "${XDG_CACHE_HOME:-}" != "" ] && [ "${XDG_CACHE_HOME:-}" != "/root/.cache" ]; then
+	# TODO: Should we verify if ${XDG_CACHE_HOME} is tmpfs before doing this?
 	# Restore the cache to the original folder
 	cp -a "${XDG_CACHE_HOME}/." /root/.cache/
 	sync
