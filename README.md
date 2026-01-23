@@ -44,7 +44,9 @@ sudo ./install.sh
 
 This image encapsulates the Guix daemon. You can view the image details and tags in [DockerHub](https://hub.docker.com/r/metacall/guix). For now, Guix does not have a daemonless option, so packaging it into a Docker image has some implications. The Guix daemon needs to fork, and forking a process during build phase is not allowed, so we have to work with it in a different way. There are two options:
 
-1. Running the build with Docker, using the `--privileged` flag and commiting the result on each step. For example, imagine we have the following `Dockerfile`:
+#### 1. Docker
+
+Running the build with Docker, using the `--privileged` flag and commiting the result on each step. For example, imagine we have the following `Dockerfile`:
 
    ```docker
    FROM metacall/guix:latest AS example
@@ -72,7 +74,9 @@ This image encapsulates the Guix daemon. You can view the image details and tags
 
    A complete working example used in production can be found here: https://github.com/metacall/distributable-linux
 
-2. Running the build with BuildKit using the buildx extension for Docker (like how it is done in this repository: https://github.com/metacall/guix/blob/e9a0e791af919ddf74349cdbb11acc325ee1b48b/Dockerfile#L73). BuildKit allows to pass extra arguments to the `RUN` command in the Dockerfile. With the `--security=insecure` flag we can allow Docker to fork while it is building. For supporting insecure builds, you have to use any docker syntax extension that uses `experimental` or `labs` suffix, like `# syntax=docker/dockerfile:1.1-experimental` or `# syntax=docker/dockerfile:1.4-labs`, because this feature is not standardized yet. The previous example can be transformed into this:
+#### 2. Buildkit
+
+Running the build with BuildKit using the buildx extension for Docker (like how it is done in this repository: https://github.com/metacall/guix/blob/e9a0e791af919ddf74349cdbb11acc325ee1b48b/Dockerfile#L73). BuildKit allows to pass extra arguments to the `RUN` command in the Dockerfile. With the `--security=insecure` flag we can allow Docker to fork while it is building. For supporting insecure builds, you have to use any docker syntax extension that uses `experimental` or `labs` suffix, like `# syntax=docker/dockerfile:1.1-experimental` or `# syntax=docker/dockerfile:1.4-labs`, because this feature is not standardized yet. The previous example can be transformed into this:
 
    ```docker
    # syntax=docker/dockerfile:1.4-labs
