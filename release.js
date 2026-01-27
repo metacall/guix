@@ -212,6 +212,7 @@ const release = async (architectures, build, metadata) => {
 				: '';
 
 			const dockerCmd = `docker run --rm --privileged \
+				--name guix-build-${arch.guix} \
 				-v ${hostOutput}:${containerOutput} \
 				-v ${hostScripts}:${containerScripts} \
 				${tmpfsCache} \
