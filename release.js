@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-const { exec } = require('child_process');
+const { spawn } = require('child_process');
 const path = require('path');
 const crypto = require('crypto');
 const { createReadStream, createWriteStream } = require('fs');
@@ -40,18 +40,36 @@ const defineVersion = async releasePath => {
 	return version;
 };
 
-const runCommand = (cmd, context) => {
-	return new Promise((resolve) => {
-		// Print command
-		console.log(cmd);
+const runCommand = async (cmd, args = [], context) => {
+	const command = `${cmd} ${args.join(' ')}`;
 
-		// Execute command
-		exec(cmd, (error, stdout, stderr) => {
-			const exitCode = error ? error.code : 0;
-			
+	// Print command
+	console.log(command);
+
+	// Execute command
+	return new Promise((resolve, reject) => {
+		const child = spawn(cmd, args, { shell: true});
+
+		let stdout = '';
+		let stderr = '';
+
+		child.stdout.on('data', (data) => {
+			stdout += data.toString();
+		});
+
+		child.stderr.on('data', (data) => {
+			stderr += data.toString();
+		});
+
+		child.on('error', (error) => {
+			reject(error);
+		});
+
+		child.on('close', (exitCode) => {
 			resolve({
 				context,
-				command: cmd,
+				cmd,
+				args,
 				stdout: stdout.trim(),
 				stderr: stderr.trim(),
 				exitCode
@@ -62,7 +80,7 @@ const runCommand = (cmd, context) => {
 
 const report = results => {
 	results.forEach(result => {
-		console.log(`------------- Architecture (${result.context.docker}, ${result.context.guix}) -------------`);
+		console.log(`----------------- ${result.context} -----------------`);
 		console.log(`STDOUT:	${result.stdout}`);
 		console.log(`STDERR:	${result.stderr || '(none)'}`);
 		console.log(`EXIT CODE: ${result.exitCode}`);
@@ -151,8 +169,6 @@ const fetchInstall = async outputDir => fetchFile(
 	'install.sh'
 );
 
-
-
 const generateRelease = async (releasePath, releaseFiles) => {
 	console.log(`Generating release into: ${releasePath}`);
 	console.log(releaseFiles.join('\n'));
@@ -180,10 +196,30 @@ const executeTasks = async tasks => {
 	return [];
 };
 
-const release = async (architectures, build, metadata) => {
+const executeTasksWithRetry = async tasks => {
+	const errors = await executeTasks(tasks);
+
+	if (errors.length > 0) {
+		// Retry the job, sometimes Guix is fragile and fails
+		console.log(`Encountered ${errors.length} errors, retrying the failed tasks...`);
+		const retryTasks = errors.map(error => runCommand(error.cmd, error.args, error.context));
+		const retryErrors = await executeTasks(retryTasks);
+
+		if (retryErrors.length > 0) {
+			console.log(`Encountered ${retryErrors.length} errors while retrying, exiting...`);
+			process.exit(1);
+		}
+	}
+};
+
+const dependency = async (architectures) => {
 	// Install QEMU for executing the images in multiple architectures
-	if (build === true && architectures.length > 0) {
-		const dependency = await runCommand('docker run --rm --privileged multiarch/qemu-user-static --reset -p yes');
+	if (architectures.length > 0) {
+		const dependency = await runCommand('docker', [
+			'run', '--rm', '--privileged',
+			'multiarch/qemu-user-static',
+			'--reset', '-p', 'yes'
+		]);
 
 		if (dependency.exitCode != 0) {
 			throw Error(`Failed to install QEMU multiarch:
@@ -192,59 +228,44 @@ const release = async (architectures, build, metadata) => {
 			`);
 		}
 	}
+};
 
-	// Define constants
-	const releasePath = await createReleasePath();
-	const version = await defineVersion(releasePath);
-	const hostOutput = path.resolve(__dirname, 'out');
-
+const build = async (architectures, { version, hostOutput, hostScripts, containerScripts }) => {
 	// Build the images
-	if (build === true) {
-		const containerOutput = '/output';
-		const hostScripts = path.resolve(__dirname, 'scripts');
-		const containerScripts = '/scripts';
+	const containerOutput = '/output';
 
-		// Define tasks for releasing for each architecture
-		const tasks = architectures.map(arch => {
-			// Cache breaks for 32-bit file system (armhf-linux)
-			const tmpfsCache = (arch.guix === 'armhf-linux')
-				? '-e XDG_CACHE_HOME=/tmp/.cache --mount type=tmpfs,target=/tmp/.cache'
-				: '';
+	// Define tasks for releasing for each architecture
+	const tasks = architectures.map(arch => {
+		// Cache breaks for 32-bit file system (armhf-linux)
+		const tmpfsCacheArgs = (arch.guix === 'armhf-linux')
+			? ['-e', 'XDG_CACHE_HOME=/tmp/.cache', '--mount', 'type=tmpfs,target=/tmp/.cache']
+			: [];
 
-			const dockerCmd = `docker run --rm --privileged \
-				--name guix-build-${arch.guix} \
-				-v ${hostOutput}:${containerOutput} \
-				-v ${hostScripts}:${containerScripts} \
-				${tmpfsCache} \
-				--platform ${arch.docker} \
-				-t metacall/guix \
-				${containerScripts}/release.sh "${arch.guix}" "${containerOutput}" "${version}"`;
+		const args = [
+			'run', '--rm', '--privileged',
+			'--name', `guix-build-${arch.guix}`,
+			'-v', `${hostOutput}:${containerOutput}`,
+			'-v', `${hostScripts}:${containerScripts}`,
+			...tmpfsCacheArgs,
+			'--platform', arch.docker,
+			'-t', 'metacall/guix',
+			`${containerScripts}/release.sh`, arch.guix, containerOutput, version
+		];
 
-			return runCommand(dockerCmd, arch);
-		});
+		return runCommand('docker', args, arch);
+	});
 
-		// Execute the tasks and print the results
-		const errors = await executeTasks(tasks);
+	// Execute the tasks and print the results
+	await executeTasksWithRetry(tasks);
+};
 
-		if (errors.length > 0) {
-			// Retry the job, sometimes Guix is fragile and fails
-			console.log(`Encountered ${errors.length} errors, retrying the failed tasks...`);
-			const retryTasks = errors.map(error => runCommand(error.command, error.context));
-			const retryErrors = await executeTasks(retryTasks);
+const skipMetaData = async () => {
+	console.log('Skipping metadata generation...');
+	process.exit(0);
+};
 
-			if (retryErrors.length > 0) {
-				console.log(`Encountered ${retryErrors.length} errors while retrying, exiting...`);
-				process.exit(1);
-			}
-		}
-	}
-
-	if (metadata === false) {
-		console.log('Skipping metadata generation...');
-		process.exit(0);
-	} else {
-		console.log('Generating metadata...');
-	}
+const metadata = async (architectures, { releasePath, version, hostOutput }) => {
+	console.log('Generating metadata...');
 
 	// Get latest release download base URL
 	const latestReleaseUrl = await latestRelease();
@@ -329,6 +350,68 @@ const release = async (architectures, build, metadata) => {
 	await generateRelease(releasePath, releaseFiles);
 };
 
+const docker = async (architectures, { hostScripts, containerScripts }) => {
+	// Define tasks for building each image for each architecture
+	const tasks = architectures.map(arch => {
+		const args = [
+			'buildx', 'build',
+			'--progress=plain',
+			'--platform', arch.docker,
+			'--build-arg', `METACALL_GUIX_ARCH=${arch.guix}`,
+			'--cache-from', 'type=registry,ref=docker.io/metacall/guix',
+			'-t', 'metacall/guix',
+			'--load',
+			'--allow', 'security.insecure',
+			'.'
+		];
+
+		return runCommand('docker', args, arch);
+	});
+
+	// Execute the tasks and print the results
+	await executeTasksWithRetry(tasks);
+
+	// Define the test path
+	const testPath = path.resolve(__dirname, 'test');
+
+	// Define tasks for testing the images
+	const tests = architectures.map(arch => {
+		const args = [
+			'run', '--rm', '--privileged',
+			'--pull=false',
+			'--platform', arch.docker,
+			'-v', `${testPath}/:/root/test/`,
+			'metacall/guix',
+			'bash', '/root/test/test.sh'
+		];
+
+		return runCommand(docker, args, arch);
+	});
+
+	// Execute the tasks and print the results
+	await executeTasksWithRetry(tests);
+};
+
+const release = async ({ architectures, pipeline }) => {
+	// Define context
+	const releasePath = await createReleasePath();
+	const version = await defineVersion(releasePath);
+	const hostOutput = path.resolve(__dirname, 'out');
+	const hostScripts = path.resolve(__dirname, 'scripts');
+	const containerScripts = '/scripts';
+
+	// Execute each step of the pipeline
+	for (const step of pipeline) {
+		await step(architectures, {
+			releasePath,
+			version,
+			hostOutput,
+			hostScripts,
+			containerScripts
+		});
+	}
+};
+
 const parseArguments = () => {
 	const architectures = [
 		{ docker: 'linux/amd64', guix: 'x86_64-linux' },
@@ -346,19 +429,25 @@ const parseArguments = () => {
 		console.log('No architecture detected, only metadata will be generated...');
 		return {
 			architectures,
-			build: false,
-			metadata: true
+			pipeline: [ metadata ]
 		};
 	}
 
 	// With all argument, build all images and metadata
-	if (args.length === 1 && args[0] === 'all') {
-		console.log('All architectures detected, images and metadata will be generated...');
-		return {
-			architectures,
-			build: true,
-			metadata: true
-		};
+	if (args.length === 1) {
+		if (args[0] === 'all') {
+			console.log('All architectures detected, images and metadata will be generated...');
+			return {
+				architectures,
+				pipeline: [ dependency, build, metadata ]
+			};
+		} else if (args[0] === 'docker') {
+			console.log('Docker detected, a new metacall/guix for all architectures with up to date pull will be built...');
+			return {
+				architectures,
+				pipeline: [ dependency, docker ]
+			};
+		}
 	}
 
 	// Otherwise, build the specified arquitecutres and avoid metadata, this allow parallel builds
@@ -369,15 +458,14 @@ const parseArguments = () => {
 
 	return {
 		architectures: argsArchitectures,
-		build: true,
-		metadata: false
+		pipeline: [ dependency, build, skipMetaData ]
 	};
 };
 
 const main = async () => {
 	const options = parseArguments();
 
-	return await release(options.architectures, options.build, options.metadata);
+	return await release(options);
 };
 
 main();
