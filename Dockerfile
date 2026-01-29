@@ -27,9 +27,11 @@ RUN apt-get update \
 ARG METACALL_GUIX_ARCH
 
 # Download Guix binary distribution
+# TODO: Change to latest once we restore the incremental builds
+# && export LATEST_RELEASE=$(wget --spider --server-response https://github.com/metacall/guix/releases/latest 2>&1 | grep -i "Location:" | tail -n 1 | awk '{print $2}' | sed 's/tag/download/') \
 RUN set -exuo pipefail \
 	&& mkdir -p /guix \
-	&& export LATEST_RELEASE=$(wget --spider --server-response https://github.com/metacall/guix/releases/latest 2>&1 | grep -i "Location:" | tail -n 1 | awk '{print $2}' | sed 's/tag/download/') \
+	&& export LATEST_RELEASE="https://github.com/metacall/guix/releases/download/v20260106" \
 	&& export METADATA=$(wget -qO- "${LATEST_RELEASE}/build.json" | jq -r ".\"${METACALL_GUIX_ARCH}\"") \
 	&& export BINARY_DOWNLOAD_URL=$(echo "${METADATA}" | jq -r '.url') \
 	&& export BINARY_EXPECTED_SHA=$(echo "${METADATA}" | jq -r '.sha256') \
@@ -41,7 +43,6 @@ RUN set -exuo pipefail \
 		wget -O /guix/guix-cache.${METACALL_GUIX_ARCH}.tar.xz "${CACHE_DOWNLOAD_URL}" \
 		&& if ! echo "${CACHE_EXPECTED_SHA}  /guix/guix-cache.${METACALL_GUIX_ARCH}.tar.xz" | sha256sum -c - > /dev/null 2>&1; then echo echo "ERROR: Cache checksum verification failed!" && exit 1; fi; \
 	fi \
-	&& wget -O /guix/channels.scm "${LATEST_RELEASE}/channels.scm" \
 	&& wget -O /guix/install.sh "${LATEST_RELEASE}/install.sh"
 
 FROM debian:trixie-slim AS guix
@@ -67,7 +68,6 @@ RUN --mount=type=bind,from=download,source=/guix,target=/guix \
 	&& export GUIX_BINARY_FILE_NAME=/guix/guix-binary.${METACALL_GUIX_ARCH}.tar.xz \
 	&& yes '' | sh /guix/install.sh \
 	&& chmod +x /etc/profile.d/zzz-guix.sh \
-	&& cp /guix/channels.scm /root/.config/guix/channels.scm \
 	&& /root/.config/guix/current/bin/guix-daemon --version \
 	&& if [ -f "/guix/guix-cache.${METACALL_GUIX_ARCH}.tar.xz" ]; then \
 			tar -xJf /guix/guix-cache.${METACALL_GUIX_ARCH}.tar.xz -C /root/; \
@@ -84,9 +84,6 @@ RUN set -exuo pipefail \
 	&& apt-get autoremove --purge -y \
 	&& rm -rfv /var/cache/apt/* /var/lib/apt/lists/*
 
-# Copy entry point
-COPY --chmod=0755 scripts/entry-point.sh /entry-point.sh
-
 # Copy substitute servers
 COPY substitutes/ /var/guix/profiles/per-user/root/current-guix/share/guix/
 
@@ -95,6 +92,12 @@ RUN . /var/guix/profiles/per-user/root/current-guix/etc/profile \
 	&& for file in /var/guix/profiles/per-user/root/current-guix/share/guix/*.pub; do \
 		guix archive --authorize < ${file}; \
 	done
+
+# Copy the channels
+COPY channels/channels.scm /root/.config/guix/channels.scm
+
+# Copy entry point
+COPY --chmod=0755 scripts/entry-point.sh /entry-point.sh
 
 # Environment variables
 ENV GUIX_PROFILE="/root/.config/guix/current" \
@@ -112,7 +115,8 @@ RUN --security=insecure --mount=type=tmpfs,target=/tmp/.cache \
 	--mount=type=bind,source=scripts/pull.sh,target=/pull.sh \
 	set -exuo pipefail \
 	&& if [ "$METACALL_GUIX_ARCH" = "armhf-linux" ]; then export XDG_CACHE_HOME=/tmp/.cache; fi \
-	&& /entry-point.sh /pull.sh
+	&& /entry-point.sh /pull.sh \
+	&& guix describe --format=channels | tee /root/.config/guix/channels.scm
 
 ENTRYPOINT ["/entry-point.sh"]
 CMD ["sh"]

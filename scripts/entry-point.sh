@@ -66,40 +66,41 @@ https://ci.guix.gnu.org
 https://bordeaux.guix.gnu.org
 EOF
 
-# Unofficial mirrors (sharing same public keys of official farms)
-# https://libreplanet.org/wiki/Group:Guix/Mirrors
-substitute_urls <<EOF
-https://bordeaux-us-east-mirror.cbaines.net
-https://hydra-guix-129.guix.gnu.org
-https://bordeaux-guix.jing.rocks
-https://mirror.yandex.ru/mirrors/guix/
-https://berlin-guix.jing.rocks
-https://bordeaux-singapore-mirror.cbaines.net
-EOF
+# TODO: Uncomment
+# # Unofficial mirrors (sharing same public keys of official farms)
+# # https://libreplanet.org/wiki/Group:Guix/Mirrors
+# substitute_urls <<EOF
+# https://bordeaux-us-east-mirror.cbaines.net
+# https://hydra-guix-129.guix.gnu.org
+# https://bordeaux-guix.jing.rocks
+# https://mirror.yandex.ru/mirrors/guix/
+# https://berlin-guix.jing.rocks
+# https://bordeaux-singapore-mirror.cbaines.net
+# EOF
 
-# Nonguix substitutes
-substitute_urls <<EOF
-https://substitutes.nonguix.org
-EOF
+# # Nonguix substitutes
+# substitute_urls <<EOF
+# https://substitutes.nonguix.org
+# EOF
 
-# Unofficial mirrors removed because of slow connection problems:
-# https://mirrors.sjtug.sjtu.edu.cn/guix # Unnoficial mirror (People's Republic of China)
-# https://guix.tobias.gr # Tobias (Germany)
+# # Unofficial mirrors removed because of slow connection problems:
+# # https://mirrors.sjtug.sjtu.edu.cn/guix # Unnoficial mirror (People's Republic of China)
+# # https://guix.tobias.gr # Tobias (Germany)
 
-# Genenetwork mirror (USA)
-substitute_urls <<EOF
-https://cuirass.genenetwork.org
-EOF
+# # Genenetwork mirror (USA)
+# substitute_urls <<EOF
+# https://cuirass.genenetwork.org
+# EOF
 
-# Guix Moe CI
-substitute_urls <<EOF
-https://cache-cdn.guix.moe
-https://cache-de.guix.moe
-https://cache-fi.guix.moe
-https://cache-us-lax.guix.moe
-https://cache-sg.guix.moe
-https://cache-it.guix.moe
-EOF
+# # Guix Moe CI
+# substitute_urls <<EOF
+# https://cache-cdn.guix.moe
+# https://cache-de.guix.moe
+# https://cache-fi.guix.moe
+# https://cache-us-lax.guix.moe
+# https://cache-sg.guix.moe
+# https://cache-it.guix.moe
+# EOF
 
 # Define extra arguments depending on the architecture
 ARCH=$(uname -m)

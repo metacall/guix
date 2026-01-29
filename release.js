@@ -5,7 +5,7 @@ const path = require('path');
 const crypto = require('crypto');
 const { createReadStream, createWriteStream } = require('fs');
 const { mkdir, stat, readFile, writeFile, rename } = require('fs/promises');
-const { Readable, Transform } = require('stream');
+const { Readable } = require('stream');
 const { pipeline } = require('stream/promises');
 
 const createReleasePath = async () => {
@@ -55,10 +55,12 @@ const runCommand = async (cmd, args = [], context) => {
 
 		child.stdout.on('data', (data) => {
 			stdout += data.toString();
+			console.log('.'); // TODO: Remove this
 		});
 
 		child.stderr.on('data', (data) => {
 			stderr += data.toString();
+			console.log('.'); // TODO: Remove this
 		});
 
 		child.on('error', (error) => {
@@ -80,7 +82,7 @@ const runCommand = async (cmd, args = [], context) => {
 
 const report = results => {
 	results.forEach(result => {
-		console.log(`----------------- ${result.context} -----------------`);
+		console.log(`----------------- ${JSON.stringify(result.context)} -----------------`);
 		console.log(`STDOUT:	${result.stdout}`);
 		console.log(`STDERR:	${result.stderr || '(none)'}`);
 		console.log(`EXIT CODE: ${result.exitCode}`);
@@ -142,26 +144,6 @@ const fetchFile = async (outputDir, url, fileName, transform) => {
 
 	return filePath;
 };
-
-const fetchChannels = async outputDir => fetchFile(
-	outputDir,
-	'https://ci.guix.gnu.org/eval/latest/channels.scm?spec=guix',
-	'channels.scm',
-	new Transform({
-		transform: (chunk, encoding, callback) => {
-			// Replace the URL of the repository by Codeberg
-			// Codeberg is faster than Savanah and Guix
-			// will be migrated eventually into it
-			const content = chunk.toString().replaceAll(
-				'https://git.guix.gnu.org/guix.git',
-				'https://codeberg.org/guix/guix.git'
-			);
-
-			// Push the modified chunk back into the stream
-			callback(null, content);
-		}
-	})
-);
 
 const fetchInstall = async outputDir => fetchFile(
 	outputDir,
@@ -338,10 +320,6 @@ const metadata = async (architectures, { releasePath, version, hostOutput }) => 
 	await writeFile(buildPath, JSON.stringify(newJson, null, 2), 'utf8');
 	releaseFiles.push(buildPath);
 
-	// Fetch the latest channels.scm replacing the URL
-	const channelsPath = await fetchChannels(hostOutput);
-	releaseFiles.push(channelsPath);
-
 	// Fetch the latest install.sh
 	const installPath = await fetchInstall(hostOutput);
 	releaseFiles.push(installPath);
@@ -350,7 +328,7 @@ const metadata = async (architectures, { releasePath, version, hostOutput }) => 
 	await generateRelease(releasePath, releaseFiles);
 };
 
-const docker = async (architectures, { hostScripts, containerScripts }) => {
+const docker = async architectures => {
 	// Define tasks for building each image for each architecture
 	const tasks = architectures.map(arch => {
 		const args = [
