@@ -83,7 +83,7 @@ jobs:
       - name: Test (local)
         if: ${{ github.event_name == 'pull_request' }}
         run: |
-          docker run --rm --privileged --pull=false --platform ${{ matrix.platform.docker }} -v $(pwd)/test/:/root/test/ ${{ env.REGISTRY_IMAGE }} bash /root/test/test.sh
+          docker run --rm --privileged --pull=never --platform ${{ matrix.platform.docker }} -v $(pwd)/test/:/root/test/ ${{ env.REGISTRY_IMAGE }} bash /root/test/test.sh
 
       - name: Test (remote)
         if: ${{ github.event_name != 'pull_request' }}

@@ -356,7 +356,7 @@ const docker = async architectures => {
 	const tests = architectures.map(arch => {
 		const args = [
 			'run', '--rm', '--privileged',
-			'--pull=false',
+			'--pull=never',
 			'--platform', arch.docker,
 			'-v', `${testPath}/:/root/test/`,
 			'metacall/guix',
