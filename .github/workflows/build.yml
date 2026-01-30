@@ -9,10 +9,9 @@ on:
     branches:
       - master
 
-# TODO: Uncomment this
-# concurrency:
-#   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-#   cancel-in-progress: true
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 env:
   REGISTRY_IMAGE: metacall/guix
@@ -30,8 +29,9 @@ jobs:
           { docker: linux/386, guix: i686-linux },
           { docker: linux/arm/v7, guix: armhf-linux },
           { docker: linux/arm64/v8, guix: aarch64-linux },
-          { docker: linux/ppc64le, guix: powerpc64le-linux },
-          { docker: linux/riscv64, guix: riscv64-linux }
+          { docker: linux/ppc64le, guix: powerpc64le-linux }
+          # TODO: https://github.com/metacall/guix/issues/18
+          # { docker: linux/riscv64, guix: riscv64-linux }
         ]
 
     steps:
