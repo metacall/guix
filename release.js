@@ -14,17 +14,17 @@ const createReleasePath = async () => {
 	return releasePath;
 };
 
+const fileExists = async filePath => {
+	try {
+		await stat(filePath);
+		return true;
+	} catch (err) {
+		return false;
+	}
+};
+
 const defineVersion = async releasePath => {
 	const versionPath = path.join(releasePath, 'VERSION');
-
-	const fileExists = async filePath => {
-		try {
-			await stat(filePath);
-			return true;
-		} catch (err) {
-			return false;
-		}
-	};
 
 	// If VERSION exists, load it
 	if (await fileExists(versionPath)) {
@@ -261,13 +261,34 @@ const metadata = async (architectures, { releasePath, version, hostOutput }) => 
 		return await Promise.all(architectures.map(arch => {
 			const filePath = path.join(hostOutput, resourceName(resource, version, arch.guix));
 
-			return sha256(filePath, (sha256, arch) => {
-				return {
-					arch,
-					filePath,
-					sha256
-				};
-			}, arch.guix);
+			const compute = async () => {
+				if (await fileExists(filePath)) {
+					// If the file exists, calculate the SHA256
+					return await sha256(filePath, (sha256, arch) => {
+						return {
+							arch,
+							filePath,
+							sha256
+						};
+					}, arch.guix);
+				} else {
+					// If the file does not exist, return the latest cached resource
+					const sha256 = ({
+						binary: latestJson[arch.guix]?.sha256,
+						cache: latestJson[arch.guix]?.cache?.sha256
+					})[resource];
+
+					console.log(`Warning: Resource '${resource}' of ${arch.guix} not found, using previous resource from last build.json with SHA256: ${sha256}`);
+
+					return {
+						arch: arch.guix,
+						filePath,
+						sha256
+					};
+				}
+			};
+
+			return compute();
 		}));
 	};
 
