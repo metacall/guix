@@ -55,12 +55,10 @@ const runCommand = async (cmd, args = [], context) => {
 
 		child.stdout.on('data', (data) => {
 			stdout += data.toString();
-			console.log('.'); // TODO: Remove this
 		});
 
 		child.stderr.on('data', (data) => {
 			stderr += data.toString();
-			console.log('.'); // TODO: Remove this
 		});
 
 		child.on('error', (error) => {

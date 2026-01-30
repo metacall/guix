@@ -27,11 +27,9 @@ RUN apt-get update \
 ARG METACALL_GUIX_ARCH
 
 # Download Guix binary distribution
-# TODO: Change to latest once we restore the incremental builds
-# && export LATEST_RELEASE=$(wget --spider --server-response https://github.com/metacall/guix/releases/latest 2>&1 | grep -i "Location:" | tail -n 1 | awk '{print $2}' | sed 's/tag/download/') \
 RUN set -exuo pipefail \
 	&& mkdir -p /guix \
-	&& export LATEST_RELEASE="https://github.com/metacall/guix/releases/download/v20260106" \
+	&& export LATEST_RELEASE=$(wget --spider --server-response https://github.com/metacall/guix/releases/latest 2>&1 | grep -i "Location:" | tail -n 1 | awk '{print $2}' | sed 's/tag/download/') \
 	&& export METADATA=$(wget -qO- "${LATEST_RELEASE}/build.json" | jq -r ".\"${METACALL_GUIX_ARCH}\"") \
 	&& export BINARY_DOWNLOAD_URL=$(echo "${METADATA}" | jq -r '.url') \
 	&& export BINARY_EXPECTED_SHA=$(echo "${METADATA}" | jq -r '.sha256') \
