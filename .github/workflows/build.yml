@@ -29,8 +29,9 @@ jobs:
           { docker: linux/386, guix: i686-linux },
           { docker: linux/arm/v7, guix: armhf-linux },
           { docker: linux/arm64/v8, guix: aarch64-linux },
-          { docker: linux/ppc64le, guix: powerpc64le-linux },
-          { docker: linux/riscv64, guix: riscv64-linux }
+          { docker: linux/ppc64le, guix: powerpc64le-linux }
+          # TODO: https://github.com/metacall/guix/issues/18
+          # { docker: linux/riscv64, guix: riscv64-linux }
         ]
 
     steps:
@@ -83,7 +84,7 @@ jobs:
       - name: Test (local)
         if: ${{ github.event_name == 'pull_request' }}
         run: |
-          docker run --rm --privileged --pull=false --platform ${{ matrix.platform.docker }} -v $(pwd)/test/:/root/test/ ${{ env.REGISTRY_IMAGE }} bash /root/test/test.sh
+          docker run --rm --privileged --pull=never --platform ${{ matrix.platform.docker }} -v $(pwd)/test/:/root/test/ ${{ env.REGISTRY_IMAGE }} bash /root/test/test.sh
 
       - name: Test (remote)
         if: ${{ github.event_name != 'pull_request' }}
