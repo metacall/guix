@@ -8,6 +8,8 @@ const { mkdir, stat, readFile, writeFile, rename } = require('fs/promises');
 const { Readable } = require('stream');
 const { pipeline } = require('stream/promises');
 
+const METACALL_GUIX = 'metacall/guix';
+
 const createReleasePath = async () => {
 	const releasePath = path.resolve(__dirname, '.release');
 	await mkdir(releasePath, { recursive: true });
@@ -102,7 +104,7 @@ const sha256 = (filePath, fn, context) => {
 };
 
 const latestRelease = async () => {
-	const latestResponse = await fetch('https://github.com/metacall/guix/releases/latest', {
+	const latestResponse = await fetch(`https://github.com/${METACALL_GUIX}/releases/latest`, {
 		method: 'HEAD',
 		redirect: 'follow'
 	});
@@ -192,6 +194,71 @@ const executeTasksWithRetry = async tasks => {
 	}
 };
 
+const findDockerHubLatestTags = async () => {
+	try {
+		const response = await fetch(
+			`https://registry.hub.docker.com/v2/repositories/${METACALL_GUIX}/tags?page_size=250`
+		);
+
+		if (!response.ok) {
+			throw new Error(`Failed to fetch tags: ${response.statusText}`);
+		}
+
+		const data = await response.json();
+		const tags = data.results.map(r => r.name);
+
+		return tags;
+	} catch (e) {
+		console.log('ERROR: Failed to download latest tags from DockerHub:', e);
+		return [];
+	}
+};
+
+const findLatestValidTag = async architecture => {
+	// Check locally first
+	const images = await runCommand('docker', [
+		'images', '--format', '{{.Repository}}:{{.Tag}}'
+	]);
+
+	const localTags = images.stdout
+		.split('\n')
+		.filter(line => line.startsWith(`${METACALL_GUIX}:`));
+
+	for (const image of localTags) {
+		const inspect = await runCommand('docker', [
+			'image', 'inspect', image
+		]);
+
+		if (inspect.exitCode !== 0) {
+			continue;
+		}
+
+		const metadata = JSON.parse(inspect.stdout);
+
+		const supportsArchitecture = metadata.some(
+			img => `${img.Os}/${img.Architecture}` === architecture
+		);
+
+		if (supportsArchitecture) {
+			// Return the valid tag
+			return image.split(':').pop();
+		}
+	}
+
+	// Start pulling from DockerHub
+	const tags = await findDockerHubLatestTags();
+
+	for (const tag of tags) {
+		const pull = await runCommand('docker', [
+			'pull', `--platform=${architecture}`, `${METACALL_GUIX}:${tag}`
+		]);
+
+		if (pull.exitCode === 0) {
+			return tag;
+		}
+	}
+};
+
 const dependency = async (architectures) => {
 	// Install QEMU for executing the images in multiple architectures
 	if (architectures.length > 0) {
@@ -214,8 +281,19 @@ const build = async (architectures, { version, hostOutput, hostScripts, containe
 	// Build the images
 	const containerOutput = '/output';
 
+	// Find the latest valid tag
+	const validArchitectures = [];
+
+	for (const arch of architectures) {
+		const tag = await findLatestValidTag(arch.docker);
+
+		if (tag !== undefined) {
+			validArchitectures.push({ ...arch, tag });
+		}
+	}
+
 	// Define tasks for releasing for each architecture
-	const tasks = architectures.map(arch => {
+	const tasks = validArchitectures.map(arch => {
 		// Cache breaks for 32-bit file system (armhf-linux)
 		const tmpfsCacheArgs = (arch.guix === 'armhf-linux')
 			? ['-e', 'XDG_CACHE_HOME=/tmp/.cache', '--mount', 'type=tmpfs,target=/tmp/.cache']
@@ -228,7 +306,7 @@ const build = async (architectures, { version, hostOutput, hostScripts, containe
 			'-v', `${hostScripts}:${containerScripts}`,
 			...tmpfsCacheArgs,
 			'--platform', arch.docker,
-			'-t', 'metacall/guix',
+			'-t', `${METACALL_GUIX}:${arch.tag}`,
 			`${containerScripts}/release.sh`, arch.guix, containerOutput, version
 		];
 
@@ -315,7 +393,7 @@ const metadata = async (architectures, { releasePath, version, hostOutput }) => 
 		} else {
 			// Otherwise release the file
 			const resource = resourceName('binary', version, binary.arch);
-			newJson[binary.arch].url = `https://github.com/metacall/guix/releases/download/v${version}/${resource}`;
+			newJson[binary.arch].url = `https://github.com/${METACALL_GUIX}/releases/download/v${version}/${resource}`;
 			releaseFiles.push(binary.filePath);
 		}
 	}
@@ -329,7 +407,7 @@ const metadata = async (architectures, { releasePath, version, hostOutput }) => 
 		} else {
 			// Otherwise release the file
 			const resource = resourceName('cache', version, cache.arch);
-			newJson[cache.arch].cache.url = `https://github.com/metacall/guix/releases/download/v${version}/${resource}`;
+			newJson[cache.arch].cache.url = `https://github.com/${METACALL_GUIX}/releases/download/v${version}/${resource}`;
 			releaseFiles.push(cache.filePath);
 		}
 	}
@@ -355,8 +433,8 @@ const docker = async architectures => {
 			'--progress=plain',
 			'--platform', arch.docker,
 			'--build-arg', `METACALL_GUIX_ARCH=${arch.guix}`,
-			'--cache-from', 'type=registry,ref=docker.io/metacall/guix',
-			'-t', 'metacall/guix',
+			'--cache-from', `type=registry,ref=docker.io/${METACALL_GUIX}`,
+			'-t', METACALL_GUIX,
 			'--load',
 			'--allow', 'security.insecure',
 			'.'
@@ -378,7 +456,7 @@ const docker = async architectures => {
 			'--pull=never',
 			'--platform', arch.docker,
 			'-v', `${testPath}/:/root/test/`,
-			'metacall/guix',
+			METACALL_GUIX,
 			'bash', '/root/test/test.sh'
 		];
 
@@ -439,7 +517,7 @@ const parseArguments = () => {
 				pipeline: [ dependency, build, metadata ]
 			};
 		} else if (args[0] === 'docker') {
-			console.log('Docker detected, a new metacall/guix for all architectures with up to date pull will be built...');
+			console.log(`Docker detected, a new ${METACALL_GUIX} for all architectures with up to date pull will be built...`);
 			return {
 				architectures,
 				pipeline: [ dependency, docker ]
