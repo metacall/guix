@@ -68,8 +68,49 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Build and push by digest
-        id: build
+        id: build-1
         uses: docker/build-push-action@v6
+        continue-on-error: ${{ github.event_name != 'pull_request' }}
+        with:
+          platforms: ${{ matrix.platform.docker }}
+          labels: ${{ steps.meta.outputs.labels }}
+          outputs: type=image,name=docker.io/${{ env.REGISTRY_IMAGE }},push-by-digest=${{ github.event_name != 'pull_request' }},name-canonical=true,push=${{ github.event_name != 'pull_request' }}
+          load: ${{ github.event_name == 'pull_request' }}
+          tags: ${{ env.REGISTRY_IMAGE }}
+          allow: security.insecure
+          build-args: |
+            METACALL_GUIX_ARCH=${{ matrix.platform.guix }}
+          cache-from: type=registry,ref=docker.io/${{ env.REGISTRY_IMAGE }}
+
+      - name: Backoff before retry
+        if: ${{ github.event_name != 'pull_request' && steps.build-1.outcome == 'failure' }}
+        run: sleep 60
+
+      - name: Build and push by digest (retry)
+        id: build-2
+        if: ${{ github.event_name != 'pull_request' && steps.build-1.outcome == 'failure' }}
+        uses: docker/build-push-action@v6
+        continue-on-error: true
+        with:
+          platforms: ${{ matrix.platform.docker }}
+          labels: ${{ steps.meta.outputs.labels }}
+          outputs: type=image,name=docker.io/${{ env.REGISTRY_IMAGE }},push-by-digest=${{ github.event_name != 'pull_request' }},name-canonical=true,push=${{ github.event_name != 'pull_request' }}
+          load: ${{ github.event_name == 'pull_request' }}
+          tags: ${{ env.REGISTRY_IMAGE }}
+          allow: security.insecure
+          build-args: |
+            METACALL_GUIX_ARCH=${{ matrix.platform.guix }}
+          cache-from: type=registry,ref=docker.io/${{ env.REGISTRY_IMAGE }}
+
+      - name: Backoff before retry
+        if: ${{ github.event_name != 'pull_request' && steps.build-2.outcome == 'failure' }}
+        run: sleep 120
+
+      - name: Build and push by digest (retry)
+        id: build-3
+        if: ${{ github.event_name != 'pull_request' && steps.build-2.outcome == 'failure' }}
+        uses: docker/build-push-action@v6
+        continue-on-error: false
         with:
           platforms: ${{ matrix.platform.docker }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -90,6 +131,24 @@ jobs:
         if: ${{ github.event_name != 'pull_request' }}
         run: |
           docker run --rm --privileged --platform ${{ matrix.platform.docker }} -v $(pwd)/test/:/root/test/ docker.io/${{ env.REGISTRY_IMAGE }}@${{ steps.build.outputs.digest }} bash /root/test/test.sh
+
+      - name: Select successful digest
+        id: build
+        run: |
+          if [ "${{ steps.build-1.outcome }}" = "success" ]; then
+            echo "digest=${{ steps.build-1.outputs.digest }}" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          if [ "${{ steps.build-2.outcome }}" = "success" ]; then
+            echo "digest=${{ steps.build-2.outputs.digest }}" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          if [ "${{ steps.build-3.outcome }}" = "success" ]; then
+            echo "digest=${{ steps.build-3.outputs.digest }}" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          echo "No successful build found"
+          exit 1
 
       - name: Export digest
         if: github.event_name != 'pull_request'
