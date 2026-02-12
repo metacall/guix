@@ -122,16 +122,6 @@ jobs:
             METACALL_GUIX_ARCH=${{ matrix.platform.guix }}
           cache-from: type=registry,ref=docker.io/${{ env.REGISTRY_IMAGE }}
 
-      - name: Test (local)
-        if: ${{ github.event_name == 'pull_request' }}
-        run: |
-          docker run --rm --privileged --pull=never --platform ${{ matrix.platform.docker }} -v $(pwd)/test/:/root/test/ ${{ env.REGISTRY_IMAGE }} bash /root/test/test.sh
-
-      - name: Test (remote)
-        if: ${{ github.event_name != 'pull_request' }}
-        run: |
-          docker run --rm --privileged --platform ${{ matrix.platform.docker }} -v $(pwd)/test/:/root/test/ docker.io/${{ env.REGISTRY_IMAGE }}@${{ steps.build.outputs.digest }} bash /root/test/test.sh
-
       - name: Select successful digest
         id: build
         run: |
@@ -150,15 +140,25 @@ jobs:
           echo "No successful build found"
           exit 1
 
+      - name: Test (local)
+        if: ${{ github.event_name == 'pull_request' }}
+        run: |
+          docker run --rm --privileged --pull=never --platform ${{ matrix.platform.docker }} -v $(pwd)/test/:/root/test/ ${{ env.REGISTRY_IMAGE }} bash /root/test/test.sh
+
+      - name: Test (remote)
+        if: ${{ github.event_name != 'pull_request' }}
+        run: |
+          docker run --rm --privileged --platform ${{ matrix.platform.docker }} -v $(pwd)/test/:/root/test/ docker.io/${{ env.REGISTRY_IMAGE }}@${{ steps.build.outputs.digest }} bash /root/test/test.sh
+
       - name: Export digest
-        if: github.event_name != 'pull_request'
+        if: ${{ github.event_name != 'pull_request' }}
         run: |
           mkdir -p /tmp/digests
           digest="${{ steps.build.outputs.digest }}"
           touch "/tmp/digests/${digest#sha256:}"
 
       - name: Upload digest
-        if: github.event_name != 'pull_request'
+        if: ${{ github.event_name != 'pull_request' }}
         uses: actions/upload-artifact@v6.0.0
         with:
           name: digests-${{ matrix.platform.guix }}
