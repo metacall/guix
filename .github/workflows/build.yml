@@ -21,6 +21,7 @@ jobs:
   build:
     name: Build the Docker image
     runs-on: ubuntu-latest
+    timeout-minutes: 350
     strategy:
       fail-fast: false
       matrix:
