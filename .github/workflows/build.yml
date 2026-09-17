@@ -21,7 +21,6 @@ jobs:
   build:
     name: Build the Docker image
     runs-on: ubuntu-latest
-    timeout-minutes: 350
 
     # A failed matrix job must not prevent the other architectures from
     # building or publishing, the build-gate job below decides whether the
@@ -37,7 +36,6 @@ jobs:
           { docker: linux/arm/v7, guix: armhf-linux },
           { docker: linux/arm64/v8, guix: aarch64-linux },
           { docker: linux/ppc64le, guix: powerpc64le-linux },
-          # TODO: https://github.com/metacall/guix/issues/18
           { docker: linux/riscv64, guix: riscv64-linux }
         ]
 
@@ -76,6 +74,7 @@ jobs:
 
       - name: Build and push by digest
         id: build-1
+        timeout-minutes: 350
         uses: docker/build-push-action@v6
         continue-on-error: ${{ github.event_name != 'pull_request' }}
         with:
@@ -96,6 +95,7 @@ jobs:
       - name: Build and push by digest (retry)
         id: build-2
         if: ${{ github.event_name != 'pull_request' && steps.build-1.outcome == 'failure' }}
+        timeout-minutes: 350
         uses: docker/build-push-action@v6
         continue-on-error: true
         with:
@@ -116,6 +116,7 @@ jobs:
       - name: Build and push by digest (retry)
         id: build-3
         if: ${{ github.event_name != 'pull_request' && steps.build-2.outcome == 'failure' }}
+        timeout-minutes: 350
         uses: docker/build-push-action@v6
         continue-on-error: true
         with:
