@@ -25,6 +25,11 @@ const fileExists = async filePath => {
 	}
 };
 
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+// Define resource name
+const resourceName = (resource, version, arch) => `guix-${resource}-${version}.${arch}.tar.xz`;
+
 const defineVersion = async releasePath => {
 	const versionPath = path.join(releasePath, 'VERSION');
 
@@ -195,23 +200,33 @@ const executeTasksWithRetry = async tasks => {
 };
 
 const findDockerHubLatestTags = async () => {
-	try {
-		const response = await fetch(
-			`https://registry.hub.docker.com/v2/repositories/${METACALL_GUIX}/tags?page_size=250`
-		);
+	const attempts = 3;
 
-		if (!response.ok) {
-			throw new Error(`Failed to fetch tags: ${response.statusText}`);
+	for (let attempt = 1; attempt <= attempts; attempt++) {
+		try {
+			const response = await fetch(
+				`https://registry.hub.docker.com/v2/repositories/${METACALL_GUIX}/tags?page_size=250`
+			);
+
+			if (!response.ok) {
+				throw new Error(`Failed to fetch tags: ${response.status} ${response.statusText}`);
+			}
+
+			const data = await response.json();
+			const tags = data.results.map(r => r.name);
+
+			return tags;
+		} catch (e) {
+			console.log(`ERROR: Failed to download latest tags from DockerHub (attempt ${attempt} of ${attempts}):`, e);
+
+			if (attempt < attempts) {
+				// Back off before retrying, 30s and 60s
+				await sleep(attempt * 30 * 1000);
+			}
 		}
-
-		const data = await response.json();
-		const tags = data.results.map(r => r.name);
-
-		return tags;
-	} catch (e) {
-		console.log('ERROR: Failed to download latest tags from DockerHub:', e);
-		return [];
 	}
+
+	return [];
 };
 
 const findLatestValidTag = async architecture => {
@@ -247,14 +262,36 @@ const findLatestValidTag = async architecture => {
 
 	// Start pulling from DockerHub
 	const tags = await findDockerHubLatestTags();
+	const attempts = 3;
 
 	for (const tag of tags) {
-		const pull = await runCommand('docker', [
-			'pull', `--platform=${architecture}`, `${METACALL_GUIX}:${tag}`
-		]);
+		for (let attempt = 1; attempt <= attempts; attempt++) {
+			const pull = await runCommand('docker', [
+				'pull', `--platform=${architecture}`, `${METACALL_GUIX}:${tag}`
+			]);
 
-		if (pull.exitCode === 0) {
-			return tag;
+			if (pull.exitCode === 0) {
+				if (tag !== tags[0]) {
+					console.log(`Warning: ${architecture} not found in ${METACALL_GUIX}:${tags[0]}, using older tag ${METACALL_GUIX}:${tag}`);
+				}
+
+				return tag;
+			}
+
+			// The tag does not contain this architecture, try the next one
+			if (/no matching manifest|manifest unknown/i.test(pull.stderr)) {
+				break;
+			}
+
+			console.log(`ERROR: Failed to pull ${METACALL_GUIX}:${tag} for ${architecture} (attempt ${attempt} of ${attempts}): ${pull.stderr}`);
+
+			if (attempt === attempts) {
+				// Do not fall back to an older tag on network errors, it would release an outdated Guix
+				return undefined;
+			}
+
+			// Back off before retrying, 30s and 60s
+			await sleep(attempt * 30 * 1000);
 		}
 	}
 };
@@ -289,6 +326,8 @@ const build = async (architectures, { version, hostOutput, hostScripts, containe
 
 		if (tag !== undefined) {
 			validArchitectures.push({ ...arch, tag });
+		} else {
+			console.log(`Warning: No valid image found for ${arch.docker}, skipping ${arch.guix}`);
 		}
 	}
 
@@ -317,6 +356,27 @@ const build = async (architectures, { version, hostOutput, hostScripts, containe
 	await executeTasksWithRetry(tasks);
 };
 
+const verify = async (architectures, { version, hostOutput }) => {
+	// Build skips an architecture silently if it does not find a valid image,
+	// so check that all the requested architectures produced their files
+	const missing = [];
+
+	for (const arch of architectures) {
+		for (const resource of ['binary', 'cache']) {
+			const filePath = path.join(hostOutput, resourceName(resource, version, arch.guix));
+
+			if (!(await fileExists(filePath)) || (await stat(filePath)).size === 0) {
+				missing.push(filePath);
+			}
+		}
+	}
+
+	if (missing.length > 0) {
+		console.log(`ERROR: Missing or empty release files:\n${missing.join('\n')}`);
+		process.exit(1);
+	}
+};
+
 const skipMetaData = async () => {
 	console.log('Skipping metadata generation...');
 	process.exit(0);
@@ -331,12 +391,17 @@ const metadata = async (architectures, { releasePath, version, hostOutput }) => 
 	// Get the latest build.json
 	const latestJson = await fetchBuildJson(latestReleaseUrl);
 
-	// Define resource name
-	const resourceName = (resource, version, arch) => `guix-${resource}-${version}.${arch}.tar.xz`;
+	// Errors are reported at the end, so the release is generated with the resources available
+	const errors = [];
+
+	const error = message => {
+		console.log(`ERROR: ${message}`);
+		errors.push(message);
+	};
 
 	// Get the SHA256 of all files
 	const computeSha256 = async resource => {
-		return await Promise.all(architectures.map(arch => {
+		const results = await Promise.all(architectures.map(arch => {
 			const filePath = path.join(hostOutput, resourceName(resource, version, arch.guix));
 
 			const compute = async () => {
@@ -351,23 +416,35 @@ const metadata = async (architectures, { releasePath, version, hostOutput }) => 
 					}, arch.guix);
 				} else {
 					// If the file does not exist, return the latest cached resource
-					const sha256 = ({
-						binary: latestJson[arch.guix]?.sha256,
-						cache: latestJson[arch.guix]?.cache?.sha256
+					const previous = ({
+						binary: latestJson[arch.guix],
+						cache: latestJson[arch.guix]?.cache
 					})[resource];
 
-					console.log(`Warning: Resource '${resource}' of ${arch.guix} not found, using previous resource from last build.json with SHA256: ${sha256}`);
+					// If there is no previous resource either, skip it
+					if (!previous?.sha256 || !previous?.url) {
+						// Missing caches are reported once build.json is generated, only for the architectures released
+						if (resource === 'binary') {
+							error(`Binary of ${arch.guix} not found and not available in last build.json, ${arch.guix} will be omitted from build.json`);
+						}
+
+						return null;
+					}
+
+					console.log(`Warning: Resource '${resource}' of ${arch.guix} not found, using previous resource from last build.json with SHA256: ${previous.sha256}`);
 
 					return {
 						arch: arch.guix,
 						filePath,
-						sha256
+						sha256: previous.sha256
 					};
 				}
 			};
 
 			return compute();
 		}));
+
+		return results.filter(result => result !== null);
 	};
 
 	const binaries = await computeSha256('binary');
@@ -380,11 +457,7 @@ const metadata = async (architectures, { releasePath, version, hostOutput }) => 
 	for (const binary of binaries) {
 		newJson[binary.arch] = {
 			url: '',
-			sha256: binary.sha256,
-			cache: {
-				url: '',
-				sha256: ''
-			}
+			sha256: binary.sha256
 		};
 
 		if (latestJson[binary.arch]?.sha256 === binary.sha256 && latestJson[binary.arch]?.url) {
@@ -399,7 +472,16 @@ const metadata = async (architectures, { releasePath, version, hostOutput }) => 
 	}
 
 	for (const cache of caches) {
-		newJson[cache.arch].cache.sha256 = cache.sha256;
+		// The cache is useless without its binary
+		if (newJson[cache.arch] === undefined) {
+			error(`Cache of ${cache.arch} is available but its binary is not, the cache will be omitted from build.json`);
+			continue;
+		}
+
+		newJson[cache.arch].cache = {
+			url: '',
+			sha256: cache.sha256
+		};
 
 		if (latestJson[cache.arch]?.cache?.sha256 === cache.sha256 && latestJson[cache.arch]?.cache?.url) {
 			// Reuse old URLs in case that SHA256 match
@@ -409,6 +491,12 @@ const metadata = async (architectures, { releasePath, version, hostOutput }) => 
 			const resource = resourceName('cache', version, cache.arch);
 			newJson[cache.arch].cache.url = `https://github.com/${METACALL_GUIX}/releases/download/v${version}/${resource}`;
 			releaseFiles.push(cache.filePath);
+		}
+	}
+
+	for (const arch of Object.keys(newJson)) {
+		if (newJson[arch].cache === undefined) {
+			error(`Cache of ${arch} not found and not available in last build.json, ${arch} will be released without cache`);
 		}
 	}
 
@@ -423,6 +511,11 @@ const metadata = async (architectures, { releasePath, version, hostOutput }) => 
 
 	// Move release files to the release path
 	await generateRelease(releasePath, releaseFiles);
+
+	if (errors.length > 0) {
+		console.log(`ERROR: Release generated with ${errors.length} errors:\n${errors.join('\n')}`);
+		process.exit(1);
+	}
 };
 
 const docker = async architectures => {
@@ -533,7 +626,7 @@ const parseArguments = () => {
 
 	return {
 		architectures: argsArchitectures,
-		pipeline: [ dependency, build, skipMetaData ]
+		pipeline: [ dependency, build, verify, skipMetaData ]
 	};
 };
 

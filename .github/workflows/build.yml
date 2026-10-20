@@ -21,12 +21,16 @@ jobs:
   build:
     name: Build the Docker image
     runs-on: ubuntu-latest
+<<<<<<< HEAD
 
     # A failed matrix job must not prevent the other architectures from
     # building or publishing, the build-gate job below decides whether the
     # overall workflow should ultimately fail
     continue-on-error: true
 
+=======
+    timeout-minutes: 355
+>>>>>>> Trying to make CI fault tolearnt.
     strategy:
       fail-fast: false
       matrix:
@@ -73,9 +77,10 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Build and push by digest
-        id: build-1
-        timeout-minutes: 350
+        id: build
         uses: docker/build-push-action@v6
+        # Stop before the job limit so a timeout is a failure instead of a cancellation
+        timeout-minutes: 320
         continue-on-error: ${{ github.event_name != 'pull_request' }}
         with:
           platforms: ${{ matrix.platform.docker }}
@@ -87,70 +92,6 @@ jobs:
           build-args: |
             METACALL_GUIX_ARCH=${{ matrix.platform.guix }}
           cache-from: type=registry,ref=docker.io/${{ env.REGISTRY_IMAGE }}
-
-      - name: Backoff before retry
-        if: ${{ github.event_name != 'pull_request' && steps.build-1.outcome == 'failure' }}
-        run: sleep 60
-
-      - name: Build and push by digest (retry)
-        id: build-2
-        if: ${{ github.event_name != 'pull_request' && steps.build-1.outcome == 'failure' }}
-        timeout-minutes: 350
-        uses: docker/build-push-action@v6
-        continue-on-error: true
-        with:
-          platforms: ${{ matrix.platform.docker }}
-          labels: ${{ steps.meta.outputs.labels }}
-          outputs: type=image,name=docker.io/${{ env.REGISTRY_IMAGE }},push-by-digest=${{ github.event_name != 'pull_request' }},name-canonical=true,push=${{ github.event_name != 'pull_request' }}
-          load: ${{ github.event_name == 'pull_request' }}
-          tags: ${{ env.REGISTRY_IMAGE }}
-          allow: security.insecure
-          build-args: |
-            METACALL_GUIX_ARCH=${{ matrix.platform.guix }}
-          cache-from: type=registry,ref=docker.io/${{ env.REGISTRY_IMAGE }}
-
-      - name: Backoff before retry
-        if: ${{ github.event_name != 'pull_request' && steps.build-2.outcome == 'failure' }}
-        run: sleep 120
-
-      - name: Build and push by digest (retry)
-        id: build-3
-        if: ${{ github.event_name != 'pull_request' && steps.build-2.outcome == 'failure' }}
-        timeout-minutes: 350
-        uses: docker/build-push-action@v6
-        continue-on-error: true
-        with:
-          platforms: ${{ matrix.platform.docker }}
-          labels: ${{ steps.meta.outputs.labels }}
-          outputs: type=image,name=docker.io/${{ env.REGISTRY_IMAGE }},push-by-digest=${{ github.event_name != 'pull_request' }},name-canonical=true,push=${{ github.event_name != 'pull_request' }}
-          load: ${{ github.event_name == 'pull_request' }}
-          tags: ${{ env.REGISTRY_IMAGE }}
-          allow: security.insecure
-          build-args: |
-            METACALL_GUIX_ARCH=${{ matrix.platform.guix }}
-          cache-from: type=registry,ref=docker.io/${{ env.REGISTRY_IMAGE }}
-
-      - name: Select successful digest
-        id: build
-        if: ${{ always() }}
-        run: |
-          if [ "${{ steps.build-1.outcome }}" = "success" ]; then
-            echo "digest=${{ steps.build-1.outputs.digest }}" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          if [ "${{ steps.build-2.outcome }}" = "success" ]; then
-            echo "digest=${{ steps.build-2.outputs.digest }}" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          if [ "${{ steps.build-3.outcome }}" = "success" ]; then
-            echo "digest=${{ steps.build-3.outputs.digest }}" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          echo "No successful build found"
-          exit 1
 
       - name: Test (local)
         if: ${{ github.event_name == 'pull_request' && steps.build.outcome == 'success' }}
@@ -167,7 +108,7 @@ jobs:
         run: |
           mkdir -p /tmp/digests
           digest="${{ steps.build.outputs.digest }}"
-          touch "/tmp/digests/${digest#sha256:}"
+          echo "${{ matrix.platform.docker }}" > "/tmp/digests/${digest#sha256:}"
 
       - name: Upload digest
         if: ${{ github.event_name != 'pull_request' && steps.build.outcome == 'success' }}
@@ -178,46 +119,26 @@ jobs:
           if-no-files-found: error
           retention-days: 3
 
-  build-gate:
-    name: Verify at least one image was published
-    runs-on: ubuntu-latest
-    if: ${{ always() && github.event_name != 'pull_request' }}
-    needs:
-      - build
-    steps:
-      - name: Download successful digests
-        uses: actions/download-artifact@v7.0.0
-        with:
-          path: /tmp/digests
-          pattern: digests-*
-          merge-multiple: true
-
-      - name: Verify at least one successful build
+      - name: Report skipped platform
+        if: ${{ github.event_name != 'pull_request' && steps.build.outcome != 'success' }}
         run: |
-          shopt -s nullglob
-          digests=(/tmp/digests/*)
-
-          if [ "${#digests[@]}" -eq 0 ]; then
-            echo "::error::All matrix build jobs failed. No Docker image was successfully published."
-            exit 1
-          fi
-
-          echo "Successfully published ${#digests[@]} architecture image(s):"
-          printf ' - %s\n' "${digests[@]}"
+          echo "::warning::Build for ${{ matrix.platform.guix }} failed or timed out, no new image was pushed for this platform"
+          echo "- :warning: \`${{ matrix.platform.guix }}\` failed or timed out, no new image was pushed" >> $GITHUB_STEP_SUMMARY
 
   merge:
     name: Merge digests for the manifest
     runs-on: ubuntu-latest
-
-    # Run if at least one job from build matrix worked
+    # Build jobs succeed even if their platform failed or timed out, so run unless cancelled
     # This will publish new releases whenever they are available for any architecture
-    # The rest will be build when they can be built, so we have opportunistic releases
-    if: ${{ needs.build-gate.result == 'success' && github.event_name != 'pull_request' }}
+    # The platforms not rebuilt keep their previous image, so we have opportunistic releases
+    if: ${{ !cancelled() && github.event_name != 'pull_request' }}
     needs:
       - build-gate
     steps:
       - name: Download digests
         uses: actions/download-artifact@v4
+        # There may be no digests if all the platforms failed
+        continue-on-error: true
         with:
           path: /tmp/digests
           pattern: digests-*
@@ -240,6 +161,51 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
+      - name: Resolve digests
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/digests
+          : > /tmp/sources
+          : > /tmp/platforms
+
+          # Registries may report linux/arm64/v8 as linux/arm64
+          normalize() { sed -E 's#^linux/arm64/v8$#linux/arm64#'; }
+
+          # Add the images built in this run, each digest file contains its platform
+          for file in /tmp/digests/*; do
+            [ -f "${file}" ] || continue
+            platform=$(normalize < "${file}")
+            echo "${platform}" >> /tmp/platforms
+            echo "docker.io/${{ env.REGISTRY_IMAGE }}@sha256:$(basename "${file}")" >> /tmp/sources
+            echo "New image for ${platform}"
+          done
+
+          if [ ! -s /tmp/sources ]; then
+            echo "::error::No platform was rebuilt"
+            exit 1
+          fi
+
+          # Fill the platforms that were not rebuilt with the images from the current manifest
+          for attempt in 1 2 3; do
+            if docker buildx imagetools inspect --raw docker.io/${{ env.REGISTRY_IMAGE }}:latest > /tmp/latest.json; then
+              break
+            fi
+            if [ "${attempt}" = "3" ]; then
+              echo "Failed to inspect the current manifest"
+              exit 1
+            fi
+            sleep 30
+          done
+
+          jq -r '.manifests[]? | select(.platform.os != "unknown") | "\(.platform.os)/\(.platform.architecture)\(if .platform.variant then "/" + .platform.variant else "" end) \(.digest)"' /tmp/latest.json \
+            | while read -r platform digest; do
+              platform=$(echo "${platform}" | normalize)
+              if ! grep -qxF "${platform}" /tmp/platforms; then
+                echo "docker.io/${{ env.REGISTRY_IMAGE }}@${digest}" >> /tmp/sources
+                echo "Keeping previous image for ${platform}"
+              fi
+            done
+
       - name: Set the version and tag name
         if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
         run: |
@@ -256,10 +222,8 @@ jobs:
           if-no-files-found: error
 
       - name: Create manifest list and push
-        working-directory: /tmp/digests
         run: |
-          IMAGE_HASHES=$(printf '${{ env.REGISTRY_IMAGE }}@sha256:%s ' *)
-
+          IMAGE_HASHES=$(cat /tmp/sources | xargs)
           docker buildx imagetools create -t ${{ env.REGISTRY_IMAGE }}:latest $IMAGE_HASHES
 
           if [ "${{ github.event_name }}" = "schedule" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
@@ -276,6 +240,7 @@ jobs:
     needs:
       - merge
     runs-on: ubuntu-latest
+    timeout-minutes: 355
     strategy:
       fail-fast: false
       matrix:
@@ -325,16 +290,28 @@ jobs:
           path: ./.release/
 
       - name: Build image ${{ matrix.platform }}
+        id: tarball
+        # Stop before the job limit so a timeout is a failure instead of a cancellation
+        # If it fails, the release will point to the previous tarball of this platform
+        timeout-minutes: 320
+        continue-on-error: true
         run: |
           node release.js ${{ matrix.platform }}
           rm -rf ./out/.gitkeep
 
       - name: Upload tarball artifact
+        if: ${{ steps.tarball.outcome == 'success' }}
         uses: actions/upload-artifact@v6.0.0
         with:
           name: tarball-${{ matrix.platform }}
           path: out/*
           if-no-files-found: error
+
+      - name: Report skipped tarball
+        if: ${{ steps.tarball.outcome != 'success' }}
+        run: |
+          echo "::warning::Tarball for ${{ matrix.platform }} failed or timed out, the release will point to the previous one"
+          echo "- :warning: \`${{ matrix.platform }}\` tarball failed or timed out, the release points to the previous one" >> $GITHUB_STEP_SUMMARY
 
   release:
     name: Release Guix Tarballs & Cache
@@ -361,6 +338,8 @@ jobs:
 
       - name: Download tarball artifacts for all architectures
         uses: actions/download-artifact@v7.0.0
+        # There may be no tarballs if all of them failed
+        continue-on-error: true
         with:
           pattern: tarball-*
           merge-multiple: true
@@ -376,6 +355,8 @@ jobs:
           path: ./.release/
 
       - name: Release
+        # Fails if a resource is missing, but the files available are still released
+        continue-on-error: true
         run: node release.js
 
       - name: Set the tag name
