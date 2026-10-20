@@ -21,16 +21,7 @@ jobs:
   build:
     name: Build the Docker image
     runs-on: ubuntu-latest
-<<<<<<< HEAD
-
-    # A failed matrix job must not prevent the other architectures from
-    # building or publishing, the build-gate job below decides whether the
-    # overall workflow should ultimately fail
-    continue-on-error: true
-
-=======
     timeout-minutes: 355
->>>>>>> Trying to make CI fault tolearnt.
     strategy:
       fail-fast: false
       matrix:
@@ -133,7 +124,7 @@ jobs:
     # The platforms not rebuilt keep their previous image, so we have opportunistic releases
     if: ${{ !cancelled() && github.event_name != 'pull_request' }}
     needs:
-      - build-gate
+      - build
     steps:
       - name: Download digests
         uses: actions/download-artifact@v4
