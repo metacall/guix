@@ -72,7 +72,6 @@ jobs:
         uses: docker/build-push-action@v6
         # Stop before the job limit so a timeout is a failure instead of a cancellation
         timeout-minutes: 320
-        continue-on-error: ${{ github.event_name != 'pull_request' }}
         with:
           platforms: ${{ matrix.platform.docker }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -111,7 +110,7 @@ jobs:
           retention-days: 3
 
       - name: Report skipped platform
-        if: ${{ github.event_name != 'pull_request' && steps.build.outcome != 'success' }}
+        if: ${{ failure() && github.event_name != 'pull_request' && steps.build.outcome == 'failure' }}
         run: |
           echo "::warning::Build for ${{ matrix.platform.guix }} failed or timed out, no new image was pushed for this platform"
           echo "- :warning: \`${{ matrix.platform.guix }}\` failed or timed out, no new image was pushed" >> $GITHUB_STEP_SUMMARY
@@ -119,7 +118,7 @@ jobs:
   merge:
     name: Merge digests for the manifest
     runs-on: ubuntu-latest
-    # Build jobs succeed even if their platform failed or timed out, so run unless cancelled
+    # Build jobs fail if their platform failed or timed out, so run anyway unless cancelled
     # This will publish new releases whenever they are available for any architecture
     # The platforms not rebuilt keep their previous image, so we have opportunistic releases
     if: ${{ !cancelled() && github.event_name != 'pull_request' }}
@@ -285,7 +284,6 @@ jobs:
         # Stop before the job limit so a timeout is a failure instead of a cancellation
         # If it fails, the release will point to the previous tarball of this platform
         timeout-minutes: 320
-        continue-on-error: true
         run: |
           node release.js ${{ matrix.platform }}
           rm -rf ./out/.gitkeep
@@ -299,14 +297,16 @@ jobs:
           if-no-files-found: error
 
       - name: Report skipped tarball
-        if: ${{ steps.tarball.outcome != 'success' }}
+        if: ${{ failure() && steps.tarball.outcome == 'failure' }}
         run: |
           echo "::warning::Tarball for ${{ matrix.platform }} failed or timed out, the release will point to the previous one"
           echo "- :warning: \`${{ matrix.platform }}\` tarball failed or timed out, the release points to the previous one" >> $GITHUB_STEP_SUMMARY
 
   release:
     name: Release Guix Tarballs & Cache
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    # Tarball jobs fail if their platform failed or timed out, so release anyway unless cancelled
+    # It is skipped only if the tarballs did not run at all (the merge failed)
+    if: ${{ !cancelled() && needs.tarball.result != 'skipped' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') }}
     needs:
       - tarball
     runs-on: ubuntu-latest
