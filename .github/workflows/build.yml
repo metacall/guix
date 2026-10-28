@@ -225,8 +225,10 @@ jobs:
           docker buildx imagetools inspect ${{ env.REGISTRY_IMAGE }}:latest
 
   tarball:
-    name: Release Guix Tarballs & Cache
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    name: Generate Guix Tarballs & Cache
+    # The implicit success() also checks the build jobs (transitive dependencies), which may have failed
+    # So run whenever the merge succeeded, even if some platforms of the build failed
+    if: ${{ !cancelled() && needs.merge.result == 'success' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') }}
     needs:
       - merge
     runs-on: ubuntu-latest
