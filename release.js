@@ -30,6 +30,9 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 // Define resource name
 const resourceName = (resource, version, arch) => `guix-${resource}-${version}.${arch}.tar.xz`;
 
+// Define the name of the file that stores the digest of the image used for packing (it is not released)
+const imageDigestName = (version, arch) => `guix-image-${version}.${arch}.digest`;
+
 const defineVersion = async releasePath => {
 	const versionPath = path.join(releasePath, 'VERSION');
 
@@ -296,6 +299,42 @@ const findLatestValidTag = async architecture => {
 	}
 };
 
+// Registries may report linux/arm64/v8 as linux/arm64
+const normalizePlatform = platform => platform.replace(/^linux\/arm64\/v8$/, 'linux/arm64');
+
+const findImageDigest = async (tag, architecture) => {
+	// Get the digest of the image of this architecture inside the manifest list
+	const inspect = await runCommand('docker', [
+		'buildx', 'imagetools', 'inspect', '--raw', `${METACALL_GUIX}:${tag}`
+	]);
+
+	if (inspect.exitCode !== 0) {
+		console.log(`Warning: Failed to inspect ${METACALL_GUIX}:${tag}: ${inspect.stderr}`);
+		return undefined;
+	}
+
+	try {
+		const index = JSON.parse(inspect.stdout);
+		const manifest = (index.manifests || []).find(({ platform }) => platform && normalizePlatform(
+			`${platform.os}/${platform.architecture}${platform.variant ? `/${platform.variant}` : ''}`
+		) === normalizePlatform(architecture));
+
+		return manifest?.digest;
+	} catch (e) {
+		console.log(`Warning: Failed to parse the manifest of ${METACALL_GUIX}:${tag}:`, e);
+		return undefined;
+	}
+};
+
+const fetchLatestBuildJson = async () => {
+	try {
+		return await fetchBuildJson(await latestRelease());
+	} catch (e) {
+		console.log('Warning: Failed to fetch the latest build.json, all the architectures will be packed:', e);
+		return {};
+	}
+};
+
 const dependency = async (architectures) => {
 	// Install QEMU for executing the images in multiple architectures
 	if (architectures.length > 0) {
@@ -314,9 +353,12 @@ const dependency = async (architectures) => {
 	}
 };
 
-const build = async (architectures, { version, hostOutput, hostScripts, containerScripts }) => {
+const build = async (architectures, { version, hostOutput, hostScripts, containerScripts, unchanged }) => {
 	// Build the images
 	const containerOutput = '/output';
+
+	// Get the latest build.json for checking which images were already packed
+	const latestJson = await fetchLatestBuildJson();
 
 	// Find the latest valid tag
 	const validArchitectures = [];
@@ -324,11 +366,22 @@ const build = async (architectures, { version, hostOutput, hostScripts, containe
 	for (const arch of architectures) {
 		const tag = await findLatestValidTag(arch.docker);
 
-		if (tag !== undefined) {
-			validArchitectures.push({ ...arch, tag });
-		} else {
+		if (tag === undefined) {
 			console.log(`Warning: No valid image found for ${arch.docker}, skipping ${arch.guix}`);
+			continue;
 		}
+
+		const digest = await findImageDigest(tag, arch.docker);
+
+		// If the image is the same that produced the latest release, packing it again is a waste of time,
+		// the metadata will reuse the previous binary and cache of this architecture
+		if (digest !== undefined && digest === latestJson[arch.guix]?.image) {
+			console.log(`Image ${METACALL_GUIX}:${tag}@${digest} of ${arch.guix} has not changed since the latest release, skipping it`);
+			unchanged.add(arch.guix);
+			continue;
+		}
+
+		validArchitectures.push({ ...arch, tag, digest });
 	}
 
 	// Define tasks for releasing for each architecture
@@ -354,14 +407,22 @@ const build = async (architectures, { version, hostOutput, hostScripts, containe
 
 	// Execute the tasks and print the results
 	await executeTasksWithRetry(tasks);
+
+	// Store the digest of the images packed, so the metadata can record them in build.json
+	for (const arch of validArchitectures) {
+		if (arch.digest !== undefined) {
+			await writeFile(path.join(hostOutput, imageDigestName(version, arch.guix)), arch.digest, 'utf8');
+		}
+	}
 };
 
-const verify = async (architectures, { version, hostOutput }) => {
+const verify = async (architectures, { version, hostOutput, unchanged }) => {
 	// Build skips an architecture silently if it does not find a valid image,
 	// so check that all the requested architectures produced their files
+	// (except the unchanged ones, which reuse the files of the latest release)
 	const missing = [];
 
-	for (const arch of architectures) {
+	for (const arch of architectures.filter(arch => !unchanged.has(arch.guix))) {
 		for (const resource of ['binary', 'cache']) {
 			const filePath = path.join(hostOutput, resourceName(resource, version, arch.guix));
 
@@ -455,9 +516,20 @@ const metadata = async (architectures, { releasePath, version, hostOutput }) => 
 	const releaseFiles = [];
 
 	for (const binary of binaries) {
+		// Record the image that produced the binary, so next releases can skip packing it again if it has not changed
+		const imageDigestPath = path.join(hostOutput, imageDigestName(version, binary.arch));
+		const image = (await fileExists(imageDigestPath))
+			? (await readFile(imageDigestPath, 'utf-8')).trim()
+			: (await fileExists(binary.filePath))
+				// The binary was packed but the digest of its image is unknown
+				? undefined
+				// The binary is reused from the latest release, so is its image
+				: latestJson[binary.arch]?.image;
+
 		newJson[binary.arch] = {
 			url: '',
-			sha256: binary.sha256
+			sha256: binary.sha256,
+			image
 		};
 
 		if (latestJson[binary.arch]?.sha256 === binary.sha256 && latestJson[binary.arch]?.url) {
@@ -568,6 +640,9 @@ const release = async ({ architectures, pipeline }) => {
 	const hostScripts = path.resolve(__dirname, 'scripts');
 	const containerScripts = '/scripts';
 
+	// Architectures whose image has not changed since the latest release
+	const unchanged = new Set();
+
 	// Execute each step of the pipeline
 	for (const step of pipeline) {
 		await step(architectures, {
@@ -575,7 +650,8 @@ const release = async ({ architectures, pipeline }) => {
 			version,
 			hostOutput,
 			hostScripts,
-			containerScripts
+			containerScripts,
+			unchanged
 		});
 	}
 };

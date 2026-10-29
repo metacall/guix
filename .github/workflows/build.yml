@@ -161,6 +161,14 @@ jobs:
           # Registries may report linux/arm64/v8 as linux/arm64
           normalize() { sed -E 's#^linux/arm64/v8$#linux/arm64#'; }
 
+          # Print the platform and digest of each image in a manifest list
+          platform_digests() {
+            jq -r '.manifests[]? | select(.platform.os != "unknown") | "\(.platform.os)/\(.platform.architecture)\(if .platform.variant then "/" + .platform.variant else "" end) \(.digest)"' \
+              | while read -r platform digest; do
+                echo "$(echo "${platform}" | normalize) ${digest}"
+              done
+          }
+
           # Add the images built in this run, each digest file contains its platform
           for file in /tmp/digests/*; do
             [ -f "${file}" ] || continue
@@ -187,14 +195,45 @@ jobs:
             sleep 30
           done
 
-          jq -r '.manifests[]? | select(.platform.os != "unknown") | "\(.platform.os)/\(.platform.architecture)\(if .platform.variant then "/" + .platform.variant else "" end) \(.digest)"' /tmp/latest.json \
+          platform_digests < /tmp/latest.json \
             | while read -r platform digest; do
-              platform=$(echo "${platform}" | normalize)
               if ! grep -qxF "${platform}" /tmp/platforms; then
+                echo "${platform}" >> /tmp/platforms
                 echo "docker.io/${{ env.REGISTRY_IMAGE }}@${digest}" >> /tmp/sources
                 echo "Keeping previous image for ${platform}"
               fi
             done
+
+          # Fill the platforms that are not in the current manifest either (e.g. dropped by an older merge)
+          # with the image from the most recent tag that contains them, the platforms must match the build matrix
+          tags=""
+          for platform in linux/amd64 linux/386 linux/arm/v7 linux/arm64 linux/ppc64le linux/riscv64; do
+            if grep -qxF "${platform}" /tmp/platforms; then
+              continue
+            fi
+
+            if [ -z "${tags}" ]; then
+              tags=$(curl -fsSL --retry 3 "https://registry.hub.docker.com/v2/repositories/${{ env.REGISTRY_IMAGE }}/tags?page_size=100&ordering=last_updated" \
+                | jq -r '.results[].name' | grep -vxF latest || true)
+            fi
+
+            found=""
+            for tag in ${tags}; do
+              digest=$( (docker buildx imagetools inspect --raw "docker.io/${{ env.REGISTRY_IMAGE }}:${tag}" 2>/dev/null || true) \
+                | platform_digests | awk -v platform="${platform}" '$1 == platform && !found { print $2; found = 1 }')
+              if [ -n "${digest}" ]; then
+                echo "${platform}" >> /tmp/platforms
+                echo "docker.io/${{ env.REGISTRY_IMAGE }}@${digest}" >> /tmp/sources
+                echo "Restoring image for ${platform} from tag ${tag}"
+                found="yes"
+                break
+              fi
+            done
+
+            if [ -z "${found}" ]; then
+              echo "::warning::No image found for ${platform} in any tag, it will be missing from the manifest"
+            fi
+          done
 
       - name: Set the version and tag name
         if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
@@ -291,12 +330,19 @@ jobs:
           rm -rf ./out/.gitkeep
 
       - name: Upload tarball artifact
-        if: ${{ steps.tarball.outcome == 'success' }}
+        # There are no files if the image has not changed since the latest release
+        if: ${{ steps.tarball.outcome == 'success' && hashFiles('out/*') != '' }}
         uses: actions/upload-artifact@v6.0.0
         with:
           name: tarball-${{ matrix.platform }}
           path: out/*
           if-no-files-found: error
+
+      - name: Report unchanged tarball
+        if: ${{ steps.tarball.outcome == 'success' && hashFiles('out/*') == '' }}
+        run: |
+          echo "::notice::Image for ${{ matrix.platform }} has not changed since the latest release, the release will point to the previous tarball"
+          echo "- :information_source: \`${{ matrix.platform }}\` image has not changed, the release points to the previous tarball" >> $GITHUB_STEP_SUMMARY
 
       - name: Report skipped tarball
         if: ${{ failure() && steps.tarball.outcome == 'failure' }}

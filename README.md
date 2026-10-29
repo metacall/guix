@@ -27,7 +27,7 @@ A by-product of this repository is that we produce a weekly release of the `curr
  - Guix Binary Tarball & Cache for `x86_64`, `aarch64`, `armhf`, `i686`, `powerpc64le` and `riscv64` Linux architectures.
  - A fixed version of `channels.scm` with the commit of the release taken from Guix CI/CD.
  - The `install.sh` script for installing the binary taken from the Guix Website.
- - A `build.json` file for verifying the SHA256 of binaries and caches.
+ - A `build.json` file for verifying the SHA256 of binaries and caches. It also records the digest of the Docker image used for packing each binary, so architectures whose image has not changed are not packed again.
  - A `VERSION` file indicating the tag in the form: `v[year][month][day]`.
 
 If you want to install the release `v20260116` in `x86_64` execute the following commands:
